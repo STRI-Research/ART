@@ -115,7 +115,7 @@ function HeaderManager({
 
   const add = (): void => {
     run('Adding assessment', async () => {
-      const next = await window.arm.assessments.upsertHeader({
+      const next = await window.arm.assessments.addSiteHeader({
         trialId,
         partRated: draft.partRated,
         ratingType: draft.ratingType,
@@ -124,7 +124,9 @@ function HeaderManager({
         ratingDate: '',
         description:
           [draft.ratingType, draft.partRated, draft.timing].filter(Boolean).join(' ') || 'Assessment',
-        ordinal: headers.length
+        ordinal: headers.length,
+        origin: 'site',
+        locked: false
       })
       setSnapshot({ ...snapshot!, assessmentHeaders: next })
       setDraft({ partRated: '', ratingType: '', ratingUnit: '', timing: '' })
@@ -141,10 +143,14 @@ function HeaderManager({
   return (
     <div className="card">
       <h2>Assessment Columns</h2>
+      <p className="muted">
+        Core columns are defined by the protocol (locked). You may add site-specific columns below.
+      </p>
       {headers.length > 0 && (
         <table className="data" style={{ marginBottom: 12 }}>
           <thead>
             <tr>
+              <th style={{ width: 70 }}>Source</th>
               <th>Rating type</th>
               <th>Part rated</th>
               <th>Unit</th>
@@ -155,13 +161,18 @@ function HeaderManager({
           <tbody>
             {headers.map((h) => (
               <tr key={h.id}>
+                <td>
+                  {h.origin === 'core' ? (
+                    <span className="tag core">🔒 core</span>
+                  ) : (
+                    <span className="tag site">site</span>
+                  )}
+                </td>
                 <td>{h.ratingType || '—'}</td>
                 <td>{h.partRated || '—'}</td>
                 <td>{h.ratingUnit || '—'}</td>
                 <td>{h.timing || '—'}</td>
-                <td>
-                  <button onClick={() => remove(h.id!)}>✕</button>
-                </td>
+                <td>{h.origin === 'core' || h.locked ? null : <button onClick={() => remove(h.id!)}>✕</button>}</td>
               </tr>
             ))}
           </tbody>

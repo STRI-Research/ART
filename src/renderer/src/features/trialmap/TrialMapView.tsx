@@ -5,6 +5,7 @@ export function TrialMapView(): JSX.Element {
   const { snapshot, setSnapshot, run } = useStore()
   const [selected, setSelected] = useState<number | null>(null)
   const trial = snapshot!.trial!
+  const protocol = snapshot!.protocol
   const plots = snapshot!.plots
 
   const treatmentName = useMemo(() => {
@@ -37,7 +38,7 @@ export function TrialMapView(): JSX.Element {
   return (
     <div className="card">
       <h2>
-        Trial Map — {trial.design}, {trial.replicates} reps, {plots.length} plots
+        Trial Map — {protocol.design}, {protocol.replicates} reps, {plots.length} plots
       </h2>
       <p className="muted">
         Click two plots to swap their treatment assignments (ARM-style hot edit).

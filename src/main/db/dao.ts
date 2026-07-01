@@ -1,16 +1,16 @@
-import type Database from 'better-sqlite3'
-import { getDb } from './connection.js'
+import Database from 'better-sqlite3'
+import { getDb, openProject, getCurrentPath, getRole } from './connection.js'
 import type {
   Protocol,
   Treatment,
   Application,
+  AssessmentDef,
   Trial,
   Plot,
   AssessmentHeader,
   AssessmentValue,
   ProjectSnapshot
 } from '@shared/types.js'
-import { getCurrentPath } from './connection.js'
 
 /**
  * Data-access layer. All row mapping between snake_case columns and camelCase
@@ -19,27 +19,44 @@ import { getCurrentPath } from './connection.js'
 
 // --- Protocol (singleton row id = 1) ---------------------------------------
 export function getProtocol(db: Database.Database = getDb()): Protocol {
-  const r = db
-    .prepare(
-      `SELECT title, crop, target_pest, objective, investigator, season, notes FROM protocol WHERE id = 1`
-    )
-    .get() as Record<string, string>
+  const r = db.prepare(`SELECT * FROM protocol WHERE id = 1`).get() as Record<string, unknown>
   return {
     id: 1,
-    title: r.title,
-    crop: r.crop,
-    targetPest: r.target_pest,
-    objective: r.objective,
-    investigator: r.investigator,
-    season: r.season,
-    notes: r.notes
+    protocolUid: r.protocol_uid as string,
+    protocolVersion: r.protocol_version as number,
+    title: r.title as string,
+    crop: r.crop as string,
+    targetPest: r.target_pest as string,
+    objective: r.objective as string,
+    investigator: r.investigator as string,
+    season: r.season as string,
+    notes: r.notes as string,
+    design: r.design as Protocol['design'],
+    replicates: r.replicates as number,
+    plotWidth: r.plot_width as number,
+    plotLength: r.plot_length as number
   }
 }
 
-export function saveProtocol(p: Protocol, db: Database.Database = getDb()): void {
+/**
+ * Save protocol fields. protocol_uid is never overwritten once assigned (it is the
+ * identity used to match returned trials back to the author's protocol). When `uid`
+ * is provided (copying a protocol into a trial file) it is written verbatim.
+ */
+export function saveProtocol(
+  p: Protocol,
+  db: Database.Database = getDb(),
+  uid?: string
+): void {
+  if (uid) {
+    db.prepare(`UPDATE protocol SET protocol_uid=@uid, protocol_version=@version WHERE id = 1`).run(
+      { uid, version: p.protocolVersion }
+    )
+  }
   db.prepare(
     `UPDATE protocol SET title=@title, crop=@crop, target_pest=@targetPest,
-       objective=@objective, investigator=@investigator, season=@season, notes=@notes
+       objective=@objective, investigator=@investigator, season=@season, notes=@notes,
+       design=@design, replicates=@replicates, plot_width=@plotWidth, plot_length=@plotLength
      WHERE id = 1`
   ).run({
     title: p.title,
@@ -48,7 +65,11 @@ export function saveProtocol(p: Protocol, db: Database.Database = getDb()): void
     objective: p.objective,
     investigator: p.investigator,
     season: p.season,
-    notes: p.notes
+    notes: p.notes,
+    design: p.design,
+    replicates: p.replicates,
+    plotWidth: p.plotWidth,
+    plotLength: p.plotLength
   })
 }
 
@@ -114,6 +135,35 @@ export function replaceApplications(apps: Application[], db: Database.Database =
   tx(apps)
 }
 
+// --- Assessment definitions (protocol-owned) --------------------------------
+export function listAssessmentDefs(db: Database.Database = getDb()): AssessmentDef[] {
+  const rows = db
+    .prepare(`SELECT * FROM assessment_def ORDER BY ordinal, id`)
+    .all() as Record<string, unknown>[]
+  return rows.map((r) => ({
+    id: r.id as number,
+    partRated: r.part_rated as string,
+    ratingType: r.rating_type as string,
+    ratingUnit: r.rating_unit as string,
+    timing: r.timing as string,
+    ratingDate: r.rating_date as string,
+    description: r.description as string,
+    ordinal: r.ordinal as number
+  }))
+}
+
+export function replaceAssessmentDefs(defs: AssessmentDef[], db: Database.Database = getDb()): void {
+  const tx = db.transaction((items: AssessmentDef[]) => {
+    db.prepare('DELETE FROM assessment_def').run()
+    const ins = db.prepare(
+      `INSERT INTO assessment_def (part_rated, rating_type, rating_unit, timing, rating_date, description, ordinal)
+       VALUES (@partRated, @ratingType, @ratingUnit, @timing, @ratingDate, @description, @ordinal)`
+    )
+    items.forEach((d, i) => ins.run({ ...d, ordinal: d.ordinal ?? i }))
+  })
+  tx(defs)
+}
+
 // --- Trial ------------------------------------------------------------------
 export function getTrial(db: Database.Database = getDb()): Trial | null {
   const r = db.prepare(`SELECT * FROM trial ORDER BY id DESC LIMIT 1`).get() as
@@ -123,13 +173,17 @@ export function getTrial(db: Database.Database = getDb()): Trial | null {
   return {
     id: r.id as number,
     protocolId: r.protocol_id as number,
-    design: r.design as Trial['design'],
-    replicates: r.replicates as number,
     plotRows: r.plot_rows as number,
     plotCols: r.plot_cols as number,
-    plotWidth: r.plot_width as number,
-    plotLength: r.plot_length as number,
-    seed: r.seed as number
+    seed: r.seed as number,
+    siteName: r.site_name as string,
+    operator: r.operator as string,
+    location: r.location as string,
+    city: r.city as string,
+    state: r.state as string,
+    country: r.country as string,
+    plantingDate: r.planting_date as string,
+    trialNotes: r.trial_notes as string
   }
 }
 
@@ -143,8 +197,10 @@ export function replaceTrialWithPlots(
     db.prepare('DELETE FROM trial').run() // cascades to plot / assessment_header / values
     const info = db
       .prepare(
-        `INSERT INTO trial (protocol_id, design, replicates, plot_rows, plot_cols, plot_width, plot_length, seed)
-         VALUES (@protocolId, @design, @replicates, @plotRows, @plotCols, @plotWidth, @plotLength, @seed)`
+        `INSERT INTO trial (protocol_id, plot_rows, plot_cols, seed,
+           site_name, operator, location, city, state, country, planting_date, trial_notes)
+         VALUES (@protocolId, @plotRows, @plotCols, @seed,
+           @siteName, @operator, @location, @city, @state, @country, @plantingDate, @trialNotes)`
       )
       .run(trial)
     const trialId = info.lastInsertRowid as number
@@ -206,7 +262,9 @@ export function listAssessmentHeaders(
     timing: r.timing as string,
     ratingDate: r.rating_date as string,
     description: r.description as string,
-    ordinal: r.ordinal as number
+    ordinal: r.ordinal as number,
+    origin: r.origin as AssessmentHeader['origin'],
+    locked: !!(r.locked as number)
   }))
 }
 
@@ -218,17 +276,41 @@ export function upsertAssessmentHeader(
     db.prepare(
       `UPDATE assessment_header SET part_rated=@partRated, rating_type=@ratingType,
         rating_unit=@ratingUnit, timing=@timing, rating_date=@ratingDate,
-        description=@description, ordinal=@ordinal WHERE id=@id`
-    ).run(h)
+        description=@description, ordinal=@ordinal, origin=@origin, locked=@locked WHERE id=@id`
+    ).run({ ...h, locked: h.locked ? 1 : 0 })
     return h.id
   }
   const info = db
     .prepare(
-      `INSERT INTO assessment_header (trial_id, part_rated, rating_type, rating_unit, timing, rating_date, description, ordinal)
-       VALUES (@trialId, @partRated, @ratingType, @ratingUnit, @timing, @ratingDate, @description, @ordinal)`
+      `INSERT INTO assessment_header (trial_id, part_rated, rating_type, rating_unit, timing, rating_date, description, ordinal, origin, locked)
+       VALUES (@trialId, @partRated, @ratingType, @ratingUnit, @timing, @ratingDate, @description, @ordinal, @origin, @locked)`
     )
-    .run(h)
+    .run({ ...h, origin: h.origin ?? 'site', locked: h.locked ? 1 : 0 })
   return info.lastInsertRowid as number
+}
+
+/** Look up a single header (used by guards to check origin before mutating). */
+export function getAssessmentHeader(
+  id: number,
+  db: Database.Database = getDb()
+): AssessmentHeader | null {
+  const r = db.prepare(`SELECT * FROM assessment_header WHERE id = ?`).get(id) as
+    | Record<string, unknown>
+    | undefined
+  if (!r) return null
+  return {
+    id: r.id as number,
+    trialId: r.trial_id as number,
+    partRated: r.part_rated as string,
+    ratingType: r.rating_type as string,
+    ratingUnit: r.rating_unit as string,
+    timing: r.timing as string,
+    ratingDate: r.rating_date as string,
+    description: r.description as string,
+    ordinal: r.ordinal as number,
+    origin: r.origin as AssessmentHeader['origin'],
+    locked: !!(r.locked as number)
+  }
 }
 
 export function deleteAssessmentHeader(id: number, db: Database.Database = getDb()): void {
@@ -283,14 +365,71 @@ export function saveAnalysisResult(
   ).run(assessmentHeaderId, engineVersion, JSON.stringify(params), JSON.stringify(result))
 }
 
+// --- Create a trial from a protocol -----------------------------------------
+/**
+ * Create a new trial file at `destPath` from the protocol at `sourcePath`.
+ * The protocol content (metadata, design, treatments, applications, assessment
+ * defs) is copied verbatim — including protocol_uid/version, the identity used to
+ * match the returned trial back to its protocol — and the file is stamped role='trial'
+ * so the copy is locked. The trial layout itself is generated later (trial:generate).
+ *
+ * The source is read via a *separate* readonly handle; only after it is closed do we
+ * call openProject(destPath), which replaces the process-global current handle.
+ */
+export function createTrialFromProtocol(sourcePath: string, destPath: string): void {
+  const src = new Database(sourcePath, { readonly: true })
+  let protocol: Protocol
+  let treatments: Treatment[]
+  let applications: Application[]
+  let defs: AssessmentDef[]
+  try {
+    protocol = getProtocol(src)
+    treatments = listTreatments(src)
+    applications = listApplications(src)
+    defs = listAssessmentDefs(src)
+  } finally {
+    src.close()
+  }
+
+  openProject(destPath, { role: 'trial', create: true })
+  saveProtocol(protocol, getDb(), protocol.protocolUid)
+  replaceTreatments(treatments)
+  replaceApplications(applications)
+  replaceAssessmentDefs(defs)
+}
+
+/** Materialize the protocol's core assessment defs as locked headers on a trial. */
+export function materializeCoreHeaders(trialId: number, db: Database.Database = getDb()): void {
+  const defs = listAssessmentDefs(db)
+  defs.forEach((d, i) => {
+    upsertAssessmentHeader(
+      {
+        trialId,
+        partRated: d.partRated,
+        ratingType: d.ratingType,
+        ratingUnit: d.ratingUnit,
+        timing: d.timing,
+        ratingDate: d.ratingDate,
+        description: d.description,
+        ordinal: d.ordinal ?? i,
+        origin: 'core',
+        locked: true
+      },
+      db
+    )
+  })
+}
+
 // --- Full snapshot ----------------------------------------------------------
 export function snapshot(db: Database.Database = getDb()): ProjectSnapshot {
   const trial = getTrial(db)
   return {
     filePath: getCurrentPath() ?? '',
+    role: getRole(),
     protocol: getProtocol(db),
     treatments: listTreatments(db),
     applications: listApplications(db),
+    assessmentDefs: listAssessmentDefs(db),
     trial,
     plots: trial ? listPlots(trial.id!, db) : [],
     assessmentHeaders: trial ? listAssessmentHeaders(trial.id!, db) : [],

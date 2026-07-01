@@ -1,21 +1,25 @@
 /** Central registry of IPC channel names, shared by main handlers and preload. */
 export const IPC = {
-  // Project
-  projectNew: 'project:new',
-  projectOpen: 'project:open',
+  // Documents (role-agnostic)
   projectSnapshot: 'project:snapshot',
   projectClose: 'project:close',
 
-  // Protocol
+  // Protocol authoring
+  protocolNew: 'protocol:new',
+  protocolOpen: 'protocol:open',
   protocolSave: 'protocol:save',
   treatmentsSave: 'treatments:save',
   applicationsSave: 'applications:save',
+  assessmentDefSave: 'assessment:def:save',
 
-  // Trial
+  // Trial (created from a protocol)
+  trialNewFromProtocol: 'trial:newFromProtocol',
+  trialOpen: 'trial:open',
   trialGenerate: 'trial:generate',
   plotSwap: 'plot:swap',
 
   // Assessments
+  assessmentHeaderAddSite: 'assessment:header:addSite',
   assessmentHeaderUpsert: 'assessment:header:upsert',
   assessmentHeaderDelete: 'assessment:header:delete',
   assessmentValueSet: 'assessment:value:set',

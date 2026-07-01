@@ -9,6 +9,14 @@ import { z } from 'zod'
 export const DesignType = z.enum(['RCB', 'CRD'])
 export type DesignType = z.infer<typeof DesignType>
 
+/** Document role: an authored protocol template, or a local trial instance. */
+export const Role = z.enum(['protocol', 'trial'])
+export type Role = z.infer<typeof Role>
+
+/** Origin of an assessment column: protocol-defined (locked) vs. operator-added. */
+export const AssessmentOrigin = z.enum(['core', 'site'])
+export type AssessmentOrigin = z.infer<typeof AssessmentOrigin>
+
 export const MeanComparisonTest = z.enum(['LSD', 'TUKEY', 'DUNCAN', 'SNK'])
 export type MeanComparisonTest = z.infer<typeof MeanComparisonTest>
 
@@ -20,13 +28,20 @@ export type AlphaLevel = z.infer<typeof AlphaLevel>
 // ---------------------------------------------------------------------------
 export const Protocol = z.object({
   id: z.number().int().optional(),
+  protocolUid: z.string().default(''),
+  protocolVersion: z.number().int().default(1),
   title: z.string().default(''),
   crop: z.string().default(''),
   targetPest: z.string().default(''),
   objective: z.string().default(''),
   investigator: z.string().default(''),
   season: z.string().default(''),
-  notes: z.string().default('')
+  notes: z.string().default(''),
+  // Experimental design is dictated by the protocol; sites differ only by randomization.
+  design: DesignType.default('RCB'),
+  replicates: z.number().int().min(2).max(20).default(4),
+  plotWidth: z.number().default(0),
+  plotLength: z.number().default(0)
 })
 export type Protocol = z.infer<typeof Protocol>
 
@@ -53,15 +68,24 @@ export type Application = z.infer<typeof Application>
 // ---------------------------------------------------------------------------
 // Trial + layout
 // ---------------------------------------------------------------------------
-export const Trial = z.object({
+/** Site/operator metadata recorded by the trial location. */
+export const SiteMetadata = z.object({
+  siteName: z.string().default(''),
+  operator: z.string().default(''),
+  location: z.string().default(''),
+  city: z.string().default(''),
+  state: z.string().default(''),
+  country: z.string().default(''),
+  plantingDate: z.string().default(''),
+  trialNotes: z.string().default('')
+})
+export type SiteMetadata = z.infer<typeof SiteMetadata>
+
+export const Trial = SiteMetadata.extend({
   id: z.number().int().optional(),
   protocolId: z.number().int(),
-  design: DesignType,
-  replicates: z.number().int().min(2).max(20),
   plotRows: z.number().int().positive(),
   plotCols: z.number().int().positive(),
-  plotWidth: z.number().default(0),
-  plotLength: z.number().default(0),
   seed: z.number().int()
 })
 export type Trial = z.infer<typeof Trial>
@@ -80,9 +104,9 @@ export type Plot = z.infer<typeof Plot>
 // ---------------------------------------------------------------------------
 // Assessments
 // ---------------------------------------------------------------------------
-export const AssessmentHeader = z.object({
+/** A protocol-authored assessment definition (no trial binding). */
+export const AssessmentDef = z.object({
   id: z.number().int().optional(),
-  trialId: z.number().int(),
   partRated: z.string().default(''),
   ratingType: z.string().default(''),
   ratingUnit: z.string().default(''),
@@ -90,6 +114,13 @@ export const AssessmentHeader = z.object({
   ratingDate: z.string().default(''),
   description: z.string().default(''),
   ordinal: z.number().int().default(0)
+})
+export type AssessmentDef = z.infer<typeof AssessmentDef>
+
+export const AssessmentHeader = AssessmentDef.extend({
+  trialId: z.number().int(),
+  origin: AssessmentOrigin.default('site'),
+  locked: z.boolean().default(false)
 })
 export type AssessmentHeader = z.infer<typeof AssessmentHeader>
 
@@ -183,9 +214,11 @@ export interface REnvStatus {
 // ---------------------------------------------------------------------------
 export interface ProjectSnapshot {
   filePath: string
+  role: Role
   protocol: Protocol
   treatments: Treatment[]
   applications: Application[]
+  assessmentDefs: AssessmentDef[]
   trial: Trial | null
   plots: Plot[]
   assessmentHeaders: AssessmentHeader[]

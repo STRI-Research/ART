@@ -28,7 +28,7 @@ export function StatsView(): JSX.Element {
     if (!headerId) return
     run('Running ANOVA', async () => {
       const result = await window.arm.stats.runAov(headerId, {
-        design: snapshot!.trial!.design,
+        design: snapshot!.protocol.design,
         test,
         alpha,
         data: obs

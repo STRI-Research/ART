@@ -113,8 +113,30 @@ export function ReportView(): JSX.Element {
             <tr>
               <th>Design</th>
               <td>
-                {snapshot!.trial!.design}, {snapshot!.trial!.replicates} replicates,{' '}
+                {protocol.design}, {protocol.replicates} replicates,{' '}
                 {snapshot!.plots.length} plots
+              </td>
+            </tr>
+            {snapshot!.trial && (
+              <>
+                <tr>
+                  <th>Site</th>
+                  <td>
+                    {[snapshot!.trial.siteName, snapshot!.trial.location, snapshot!.trial.city]
+                      .filter(Boolean)
+                      .join(', ') || '—'}
+                  </td>
+                </tr>
+                <tr>
+                  <th>Operator</th>
+                  <td>{snapshot!.trial.operator || '—'}</td>
+                </tr>
+              </>
+            )}
+            <tr>
+              <th>Protocol</th>
+              <td>
+                <code>{protocol.protocolUid.slice(0, 8) || '—'}</code> v{protocol.protocolVersion}
               </td>
             </tr>
           </tbody>

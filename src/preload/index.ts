@@ -4,24 +4,25 @@ import type {
   Protocol,
   Treatment,
   Application,
+  AssessmentDef,
   AssessmentHeader,
   AssessmentValue,
   AovRequest,
   AovResult,
   ProjectSnapshot,
   REnvStatus,
-  DesignType
+  SiteMetadata
 } from '../shared/types.js'
 
 /** The API surface exposed to the renderer. Every method is a typed IPC invoke. */
 const api = {
   project: {
-    new: (): Promise<ProjectSnapshot | null> => ipcRenderer.invoke(IPC.projectNew),
-    open: (): Promise<ProjectSnapshot | null> => ipcRenderer.invoke(IPC.projectOpen),
     snapshot: (): Promise<ProjectSnapshot | null> => ipcRenderer.invoke(IPC.projectSnapshot),
     close: (): Promise<boolean> => ipcRenderer.invoke(IPC.projectClose)
   },
   protocol: {
+    new: (): Promise<ProjectSnapshot | null> => ipcRenderer.invoke(IPC.protocolNew),
+    open: (): Promise<ProjectSnapshot | null> => ipcRenderer.invoke(IPC.protocolOpen),
     save: (p: Protocol): Promise<Protocol> => ipcRenderer.invoke(IPC.protocolSave, p)
   },
   treatments: {
@@ -32,17 +33,19 @@ const api = {
       ipcRenderer.invoke(IPC.applicationsSave, list)
   },
   trial: {
-    generate: (cfg: {
-      design: DesignType
-      replicates: number
-      plotWidth?: number
-      plotLength?: number
-      seed?: number
-    }): Promise<ProjectSnapshot> => ipcRenderer.invoke(IPC.trialGenerate, cfg),
+    newFromProtocol: (): Promise<ProjectSnapshot | null> =>
+      ipcRenderer.invoke(IPC.trialNewFromProtocol),
+    open: (): Promise<ProjectSnapshot | null> => ipcRenderer.invoke(IPC.trialOpen),
+    generate: (cfg: Partial<SiteMetadata> & { seed?: number }): Promise<ProjectSnapshot> =>
+      ipcRenderer.invoke(IPC.trialGenerate, cfg),
     swapPlots: (a: number, b: number): Promise<ProjectSnapshot> =>
       ipcRenderer.invoke(IPC.plotSwap, a, b)
   },
   assessments: {
+    saveDefs: (list: AssessmentDef[]): Promise<AssessmentDef[]> =>
+      ipcRenderer.invoke(IPC.assessmentDefSave, list),
+    addSiteHeader: (h: AssessmentHeader): Promise<AssessmentHeader[]> =>
+      ipcRenderer.invoke(IPC.assessmentHeaderAddSite, h),
     upsertHeader: (h: AssessmentHeader): Promise<AssessmentHeader[]> =>
       ipcRenderer.invoke(IPC.assessmentHeaderUpsert, h),
     deleteHeader: (id: number): Promise<AssessmentHeader[]> =>

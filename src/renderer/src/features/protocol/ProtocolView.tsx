@@ -1,17 +1,26 @@
 import { useState, useEffect } from 'react'
 import { useStore } from '../../store'
-import type { Protocol, Treatment, DesignType } from '@shared/types'
+import type { Protocol, Treatment, AssessmentDef, DesignType } from '@shared/types'
 
 export function ProtocolView(): JSX.Element {
   const { snapshot, setSnapshot, run } = useStore()
+  const readOnly = snapshot!.role === 'trial'
   const [protocol, setProtocol] = useState<Protocol>(snapshot!.protocol)
   const [treatments, setTreatments] = useState<Treatment[]>(snapshot!.treatments)
 
-  // Keep local editable copies in sync when a new project loads.
+  // Keep local editable copies in sync when a new file loads.
   useEffect(() => {
     setProtocol(snapshot!.protocol)
     setTreatments(snapshot!.treatments)
   }, [snapshot!.filePath])
+
+  const saveProtocol = (next: Protocol = protocol): void => {
+    if (readOnly) return
+    run('Saving protocol', async () => {
+      const saved = await window.arm.protocol.save(next)
+      setSnapshot({ ...useStore.getState().snapshot!, protocol: saved })
+    })
+  }
 
   const field = (key: keyof Protocol, label: string, textarea = false): JSX.Element => (
     <div style={textarea ? { gridColumn: '1 / -1' } : undefined}>
@@ -19,28 +28,24 @@ export function ProtocolView(): JSX.Element {
       {textarea ? (
         <textarea
           rows={3}
+          disabled={readOnly}
           value={protocol[key] as string}
           onChange={(e) => setProtocol({ ...protocol, [key]: e.target.value })}
-          onBlur={saveProtocol}
+          onBlur={() => saveProtocol()}
         />
       ) : (
         <input
+          disabled={readOnly}
           value={protocol[key] as string}
           onChange={(e) => setProtocol({ ...protocol, [key]: e.target.value })}
-          onBlur={saveProtocol}
+          onBlur={() => saveProtocol()}
         />
       )}
     </div>
   )
 
-  const saveProtocol = (): void => {
-    run('Saving protocol', async () => {
-      const saved = await window.arm.protocol.save(protocol)
-      setSnapshot({ ...snapshot!, protocol: saved })
-    })
-  }
-
   const saveTreatments = (next: Treatment[]): void => {
+    if (readOnly) return
     setTreatments(next)
     run('Saving treatments', async () => {
       const saved = await window.arm.treatments.save(next)
@@ -57,12 +62,19 @@ export function ProtocolView(): JSX.Element {
   }
 
   const updateTreatment = (i: number, patch: Partial<Treatment>): void => {
-    const next = treatments.map((t, idx) => (idx === i ? { ...t, ...patch } : t))
-    setTreatments(next)
+    setTreatments(treatments.map((t, idx) => (idx === i ? { ...t, ...patch } : t)))
   }
 
   return (
     <>
+      {readOnly && (
+        <div className="banner locked">
+          🔒 Protocol locked — this file is a trial instance of protocol{' '}
+          <code>{protocol.protocolUid.slice(0, 8) || '—'}</code> v{protocol.protocolVersion}. The
+          treatments, design, and core assessments were set by the author and cannot be changed.
+        </div>
+      )}
+
       <div className="card">
         <h2>Protocol</h2>
         <div className="field-grid">
@@ -77,6 +89,64 @@ export function ProtocolView(): JSX.Element {
       </div>
 
       <div className="card">
+        <h2>Experimental Design</h2>
+        <p className="muted">
+          {readOnly
+            ? 'Fixed by the protocol. Every site uses this design; only the randomization differs.'
+            : 'Dictated to all trial sites. Sites re-randomize with their own seed but keep this design.'}
+        </p>
+        <div className="row">
+          <div style={{ width: 220 }}>
+            <label>Design</label>
+            <select
+              disabled={readOnly}
+              value={protocol.design}
+              onChange={(e) => {
+                const next = { ...protocol, design: e.target.value as DesignType }
+                setProtocol(next)
+                saveProtocol(next)
+              }}
+            >
+              <option value="RCB">Randomized Complete Block</option>
+              <option value="CRD">Completely Randomized</option>
+            </select>
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Replicates</label>
+            <input
+              type="number"
+              min={2}
+              max={20}
+              disabled={readOnly}
+              value={protocol.replicates}
+              onChange={(e) => setProtocol({ ...protocol, replicates: Number(e.target.value) })}
+              onBlur={() => saveProtocol()}
+            />
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Plot width</label>
+            <input
+              type="number"
+              disabled={readOnly}
+              value={protocol.plotWidth}
+              onChange={(e) => setProtocol({ ...protocol, plotWidth: Number(e.target.value) })}
+              onBlur={() => saveProtocol()}
+            />
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Plot length</label>
+            <input
+              type="number"
+              disabled={readOnly}
+              value={protocol.plotLength}
+              onChange={(e) => setProtocol({ ...protocol, plotLength: Number(e.target.value) })}
+              onBlur={() => saveProtocol()}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
         <h2>Treatments</h2>
         <table className="data">
           <thead>
@@ -86,7 +156,7 @@ export function ProtocolView(): JSX.Element {
               <th>Product</th>
               <th style={{ width: 90 }}>Rate</th>
               <th style={{ width: 90 }}>Unit</th>
-              <th style={{ width: 40 }}></th>
+              {!readOnly && <th style={{ width: 40 }}></th>}
             </tr>
           </thead>
           <tbody>
@@ -95,6 +165,7 @@ export function ProtocolView(): JSX.Element {
                 <td className="num">{t.number}</td>
                 <td>
                   <input
+                    disabled={readOnly}
                     value={t.name}
                     onChange={(e) => updateTreatment(i, { name: e.target.value })}
                     onBlur={() => saveTreatments(treatments)}
@@ -102,6 +173,7 @@ export function ProtocolView(): JSX.Element {
                 </td>
                 <td>
                   <input
+                    disabled={readOnly}
                     value={t.product}
                     onChange={(e) => updateTreatment(i, { product: e.target.value })}
                     onBlur={() => saveTreatments(treatments)}
@@ -109,6 +181,7 @@ export function ProtocolView(): JSX.Element {
                 </td>
                 <td>
                   <input
+                    disabled={readOnly}
                     value={t.rate}
                     onChange={(e) => updateTreatment(i, { rate: e.target.value })}
                     onBlur={() => saveTreatments(treatments)}
@@ -116,96 +189,144 @@ export function ProtocolView(): JSX.Element {
                 </td>
                 <td>
                   <input
+                    disabled={readOnly}
                     value={t.rateUnit}
                     onChange={(e) => updateTreatment(i, { rateUnit: e.target.value })}
                     onBlur={() => saveTreatments(treatments)}
                   />
                 </td>
-                <td>
-                  <button
-                    title="Remove"
-                    onClick={() => saveTreatments(treatments.filter((_, idx) => idx !== i))}
-                  >
-                    ✕
-                  </button>
-                </td>
+                {!readOnly && (
+                  <td>
+                    <button
+                      title="Remove"
+                      onClick={() => saveTreatments(treatments.filter((_, idx) => idx !== i))}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
-        <div style={{ marginTop: 10 }}>
-          <button onClick={addTreatment}>+ Add treatment</button>
-        </div>
+        {!readOnly && (
+          <div style={{ marginTop: 10 }}>
+            <button onClick={addTreatment}>+ Add treatment</button>
+          </div>
+        )}
       </div>
 
-      <GenerateTrialCard />
+      <CoreAssessments readOnly={readOnly} />
     </>
   )
 }
 
-function GenerateTrialCard(): JSX.Element {
-  const { snapshot, setSnapshot, setView, run } = useStore()
-  const [design, setDesign] = useState<DesignType>('RCB')
-  const [replicates, setReplicates] = useState(4)
-  const [width, setWidth] = useState(0)
-  const [length, setLength] = useState(0)
+/** Author-defined core assessment schedule. Read-only when viewed inside a trial. */
+function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
+  const { snapshot, setSnapshot, run } = useStore()
+  const defs = snapshot!.assessmentDefs
+  const [draft, setDraft] = useState({ partRated: '', ratingType: '', ratingUnit: '', timing: '' })
 
-  const treatmentCount = snapshot!.treatments.length
-  const canGenerate = treatmentCount >= 2 && replicates >= 2
-
-  const generate = (): void => {
-    run('Generating randomized trial', async () => {
-      const next = await window.arm.trial.generate({
-        design,
-        replicates,
-        plotWidth: width,
-        plotLength: length
-      })
-      setSnapshot(next)
-      setView('trialmap')
+  const save = (next: AssessmentDef[]): void => {
+    run('Saving assessments', async () => {
+      const saved = await window.arm.assessments.saveDefs(next)
+      setSnapshot({ ...useStore.getState().snapshot!, assessmentDefs: saved })
     })
+  }
+
+  const add = (): void => {
+    save([
+      ...defs,
+      {
+        partRated: draft.partRated,
+        ratingType: draft.ratingType,
+        ratingUnit: draft.ratingUnit,
+        timing: draft.timing,
+        ratingDate: '',
+        description:
+          [draft.ratingType, draft.partRated, draft.timing].filter(Boolean).join(' ') || 'Assessment',
+        ordinal: defs.length
+      }
+    ])
+    setDraft({ partRated: '', ratingType: '', ratingUnit: '', timing: '' })
   }
 
   return (
     <div className="card">
-      <h2>Generate Randomized Trial</h2>
-      {snapshot!.trial && (
-        <div className="banner">
-          A trial already exists ({snapshot!.trial.design}, {snapshot!.trial.replicates} reps).
-          Regenerating replaces the current layout and any entered data.
+      <h2>Core Assessments</h2>
+      <p className="muted">
+        The assessment schedule every site must collect. Sites may add their own extra columns but
+        cannot change these.
+      </p>
+      {defs.length > 0 ? (
+        <table className="data" style={{ marginBottom: 12 }}>
+          <thead>
+            <tr>
+              <th>Rating type</th>
+              <th>Part rated</th>
+              <th>Unit</th>
+              <th>Timing</th>
+              {!readOnly && <th style={{ width: 40 }}></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {defs.map((d, i) => (
+              <tr key={d.id ?? i}>
+                <td>{d.ratingType || '—'}</td>
+                <td>{d.partRated || '—'}</td>
+                <td>{d.ratingUnit || '—'}</td>
+                <td>{d.timing || '—'}</td>
+                {!readOnly && (
+                  <td>
+                    <button onClick={() => save(defs.filter((_, idx) => idx !== i))}>✕</button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="muted">No core assessments defined{readOnly ? '.' : ' yet.'}</p>
+      )}
+      {!readOnly && (
+        <div className="row">
+          <div style={{ width: 160 }}>
+            <label>Rating type</label>
+            <input
+              placeholder="e.g. CONTRO, PHYGEN"
+              value={draft.ratingType}
+              onChange={(e) => setDraft({ ...draft, ratingType: e.target.value })}
+            />
+          </div>
+          <div style={{ width: 160 }}>
+            <label>Part rated</label>
+            <input
+              placeholder="e.g. PLANT, LEAF"
+              value={draft.partRated}
+              onChange={(e) => setDraft({ ...draft, partRated: e.target.value })}
+            />
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Unit</label>
+            <input
+              placeholder="%, count"
+              value={draft.ratingUnit}
+              onChange={(e) => setDraft({ ...draft, ratingUnit: e.target.value })}
+            />
+          </div>
+          <div style={{ width: 130 }}>
+            <label>Timing</label>
+            <input
+              placeholder="e.g. 14 DA-A"
+              value={draft.timing}
+              onChange={(e) => setDraft({ ...draft, timing: e.target.value })}
+            />
+          </div>
+          <button className="primary" onClick={add}>
+            + Add assessment
+          </button>
         </div>
       )}
-      <div className="row">
-        <div style={{ width: 160 }}>
-          <label>Design</label>
-          <select value={design} onChange={(e) => setDesign(e.target.value as DesignType)}>
-            <option value="RCB">Randomized Complete Block</option>
-            <option value="CRD">Completely Randomized</option>
-          </select>
-        </div>
-        <div style={{ width: 110 }}>
-          <label>Replicates</label>
-          <input
-            type="number"
-            min={2}
-            max={20}
-            value={replicates}
-            onChange={(e) => setReplicates(Number(e.target.value))}
-          />
-        </div>
-        <div style={{ width: 110 }}>
-          <label>Plot width</label>
-          <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} />
-        </div>
-        <div style={{ width: 110 }}>
-          <label>Plot length</label>
-          <input type="number" value={length} onChange={(e) => setLength(Number(e.target.value))} />
-        </div>
-        <button className="primary" disabled={!canGenerate} onClick={generate}>
-          Generate ({treatmentCount * replicates} plots)
-        </button>
-      </div>
-      {treatmentCount < 2 && <p className="muted">Add at least 2 treatments first.</p>}
     </div>
   )
 }
