@@ -1,0 +1,332 @@
+import { useState, useEffect } from 'react'
+import { useStore } from '../../store'
+import type { Protocol, Treatment, AssessmentDef, DesignType } from '@shared/types'
+
+export function ProtocolView(): JSX.Element {
+  const { snapshot, setSnapshot, run } = useStore()
+  const readOnly = snapshot!.role === 'trial'
+  const [protocol, setProtocol] = useState<Protocol>(snapshot!.protocol)
+  const [treatments, setTreatments] = useState<Treatment[]>(snapshot!.treatments)
+
+  // Keep local editable copies in sync when a new file loads.
+  useEffect(() => {
+    setProtocol(snapshot!.protocol)
+    setTreatments(snapshot!.treatments)
+  }, [snapshot!.filePath])
+
+  const saveProtocol = (next: Protocol = protocol): void => {
+    if (readOnly) return
+    run('Saving protocol', async () => {
+      const saved = await window.arm.protocol.save(next)
+      setSnapshot({ ...useStore.getState().snapshot!, protocol: saved })
+    })
+  }
+
+  const field = (key: keyof Protocol, label: string, textarea = false): JSX.Element => (
+    <div style={textarea ? { gridColumn: '1 / -1' } : undefined}>
+      <label>{label}</label>
+      {textarea ? (
+        <textarea
+          rows={3}
+          disabled={readOnly}
+          value={protocol[key] as string}
+          onChange={(e) => setProtocol({ ...protocol, [key]: e.target.value })}
+          onBlur={() => saveProtocol()}
+        />
+      ) : (
+        <input
+          disabled={readOnly}
+          value={protocol[key] as string}
+          onChange={(e) => setProtocol({ ...protocol, [key]: e.target.value })}
+          onBlur={() => saveProtocol()}
+        />
+      )}
+    </div>
+  )
+
+  const saveTreatments = (next: Treatment[]): void => {
+    if (readOnly) return
+    setTreatments(next)
+    run('Saving treatments', async () => {
+      const saved = await window.arm.treatments.save(next)
+      setSnapshot({ ...useStore.getState().snapshot!, treatments: saved })
+    })
+  }
+
+  const addTreatment = (): void => {
+    const number = treatments.length ? Math.max(...treatments.map((t) => t.number)) + 1 : 1
+    saveTreatments([
+      ...treatments,
+      { number, name: number === 1 ? 'Untreated Check' : '', product: '', rate: '', rateUnit: '', type: '' }
+    ])
+  }
+
+  const updateTreatment = (i: number, patch: Partial<Treatment>): void => {
+    setTreatments(treatments.map((t, idx) => (idx === i ? { ...t, ...patch } : t)))
+  }
+
+  return (
+    <>
+      {readOnly && (
+        <div className="banner locked">
+          🔒 Protocol locked — this file is a trial instance of protocol{' '}
+          <code>{protocol.protocolUid.slice(0, 8) || '—'}</code> v{protocol.protocolVersion}. The
+          treatments, design, and core assessments were set by the author and cannot be changed.
+        </div>
+      )}
+
+      <div className="card">
+        <h2>Protocol</h2>
+        <div className="field-grid">
+          {field('title', 'Trial title')}
+          {field('crop', 'Crop')}
+          {field('targetPest', 'Target pest / disease')}
+          {field('investigator', 'Investigator')}
+          {field('season', 'Season / year')}
+          {field('objective', 'Objective')}
+          {field('notes', 'Notes', true)}
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Experimental Design</h2>
+        <p className="muted">
+          {readOnly
+            ? 'Fixed by the protocol. Every site uses this design; only the randomization differs.'
+            : 'Dictated to all trial sites. Sites re-randomize with their own seed but keep this design.'}
+        </p>
+        <div className="row">
+          <div style={{ width: 220 }}>
+            <label>Design</label>
+            <select
+              disabled={readOnly}
+              value={protocol.design}
+              onChange={(e) => {
+                const next = { ...protocol, design: e.target.value as DesignType }
+                setProtocol(next)
+                saveProtocol(next)
+              }}
+            >
+              <option value="RCB">Randomized Complete Block</option>
+              <option value="CRD">Completely Randomized</option>
+            </select>
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Replicates</label>
+            <input
+              type="number"
+              min={2}
+              max={20}
+              disabled={readOnly}
+              value={protocol.replicates}
+              onChange={(e) => setProtocol({ ...protocol, replicates: Number(e.target.value) })}
+              onBlur={() => saveProtocol()}
+            />
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Plot width</label>
+            <input
+              type="number"
+              disabled={readOnly}
+              value={protocol.plotWidth}
+              onChange={(e) => setProtocol({ ...protocol, plotWidth: Number(e.target.value) })}
+              onBlur={() => saveProtocol()}
+            />
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Plot length</label>
+            <input
+              type="number"
+              disabled={readOnly}
+              value={protocol.plotLength}
+              onChange={(e) => setProtocol({ ...protocol, plotLength: Number(e.target.value) })}
+              onBlur={() => saveProtocol()}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Treatments</h2>
+        <table className="data">
+          <thead>
+            <tr>
+              <th style={{ width: 50 }}>#</th>
+              <th>Name</th>
+              <th>Product</th>
+              <th style={{ width: 90 }}>Rate</th>
+              <th style={{ width: 90 }}>Unit</th>
+              {!readOnly && <th style={{ width: 40 }}></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {treatments.map((t, i) => (
+              <tr key={i}>
+                <td className="num">{t.number}</td>
+                <td>
+                  <input
+                    disabled={readOnly}
+                    value={t.name}
+                    onChange={(e) => updateTreatment(i, { name: e.target.value })}
+                    onBlur={() => saveTreatments(treatments)}
+                  />
+                </td>
+                <td>
+                  <input
+                    disabled={readOnly}
+                    value={t.product}
+                    onChange={(e) => updateTreatment(i, { product: e.target.value })}
+                    onBlur={() => saveTreatments(treatments)}
+                  />
+                </td>
+                <td>
+                  <input
+                    disabled={readOnly}
+                    value={t.rate}
+                    onChange={(e) => updateTreatment(i, { rate: e.target.value })}
+                    onBlur={() => saveTreatments(treatments)}
+                  />
+                </td>
+                <td>
+                  <input
+                    disabled={readOnly}
+                    value={t.rateUnit}
+                    onChange={(e) => updateTreatment(i, { rateUnit: e.target.value })}
+                    onBlur={() => saveTreatments(treatments)}
+                  />
+                </td>
+                {!readOnly && (
+                  <td>
+                    <button
+                      title="Remove"
+                      onClick={() => saveTreatments(treatments.filter((_, idx) => idx !== i))}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!readOnly && (
+          <div style={{ marginTop: 10 }}>
+            <button onClick={addTreatment}>+ Add treatment</button>
+          </div>
+        )}
+      </div>
+
+      <CoreAssessments readOnly={readOnly} />
+    </>
+  )
+}
+
+/** Author-defined core assessment schedule. Read-only when viewed inside a trial. */
+function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
+  const { snapshot, setSnapshot, run } = useStore()
+  const defs = snapshot!.assessmentDefs
+  const [draft, setDraft] = useState({ partRated: '', ratingType: '', ratingUnit: '', timing: '' })
+
+  const save = (next: AssessmentDef[]): void => {
+    run('Saving assessments', async () => {
+      const saved = await window.arm.assessments.saveDefs(next)
+      setSnapshot({ ...useStore.getState().snapshot!, assessmentDefs: saved })
+    })
+  }
+
+  const add = (): void => {
+    save([
+      ...defs,
+      {
+        partRated: draft.partRated,
+        ratingType: draft.ratingType,
+        ratingUnit: draft.ratingUnit,
+        timing: draft.timing,
+        ratingDate: '',
+        description:
+          [draft.ratingType, draft.partRated, draft.timing].filter(Boolean).join(' ') || 'Assessment',
+        ordinal: defs.length
+      }
+    ])
+    setDraft({ partRated: '', ratingType: '', ratingUnit: '', timing: '' })
+  }
+
+  return (
+    <div className="card">
+      <h2>Core Assessments</h2>
+      <p className="muted">
+        The assessment schedule every site must collect. Sites may add their own extra columns but
+        cannot change these.
+      </p>
+      {defs.length > 0 ? (
+        <table className="data" style={{ marginBottom: 12 }}>
+          <thead>
+            <tr>
+              <th>Rating type</th>
+              <th>Part rated</th>
+              <th>Unit</th>
+              <th>Timing</th>
+              {!readOnly && <th style={{ width: 40 }}></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {defs.map((d, i) => (
+              <tr key={d.id ?? i}>
+                <td>{d.ratingType || '—'}</td>
+                <td>{d.partRated || '—'}</td>
+                <td>{d.ratingUnit || '—'}</td>
+                <td>{d.timing || '—'}</td>
+                {!readOnly && (
+                  <td>
+                    <button onClick={() => save(defs.filter((_, idx) => idx !== i))}>✕</button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="muted">No core assessments defined{readOnly ? '.' : ' yet.'}</p>
+      )}
+      {!readOnly && (
+        <div className="row">
+          <div style={{ width: 160 }}>
+            <label>Rating type</label>
+            <input
+              placeholder="e.g. CONTRO, PHYGEN"
+              value={draft.ratingType}
+              onChange={(e) => setDraft({ ...draft, ratingType: e.target.value })}
+            />
+          </div>
+          <div style={{ width: 160 }}>
+            <label>Part rated</label>
+            <input
+              placeholder="e.g. PLANT, LEAF"
+              value={draft.partRated}
+              onChange={(e) => setDraft({ ...draft, partRated: e.target.value })}
+            />
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Unit</label>
+            <input
+              placeholder="%, count"
+              value={draft.ratingUnit}
+              onChange={(e) => setDraft({ ...draft, ratingUnit: e.target.value })}
+            />
+          </div>
+          <div style={{ width: 130 }}>
+            <label>Timing</label>
+            <input
+              placeholder="e.g. 14 DA-A"
+              value={draft.timing}
+              onChange={(e) => setDraft({ ...draft, timing: e.target.value })}
+            />
+          </div>
+          <button className="primary" onClick={add}>
+            + Add assessment
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
