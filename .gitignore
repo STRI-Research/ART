@@ -1,0 +1,9 @@
+node_modules/
+out/
+dist-app/
+*.log
+*.tsbuildinfo
+.DS_Store
+# Local test project files
+*.armdb
+!src/**/*.armdb

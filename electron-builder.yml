@@ -1,0 +1,27 @@
+appId: com.openarm.app
+productName: Open ARM
+directories:
+  buildResources: build
+  output: dist-app
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{.eslintrc,.prettierrc,vitest.config.ts}'
+asarUnpack:
+  - resources/**
+  - '**/*.node'
+extraResources:
+  - from: src/main/r
+    to: r
+    filter:
+      - '**/*.R'
+win:
+  target: nsis
+mac:
+  target: dmg
+  category: public.app-category.productivity
+linux:
+  target: AppImage
+  category: Science
