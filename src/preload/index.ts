@@ -9,6 +9,7 @@ import type {
   AssessmentValue,
   AovRequest,
   AovResult,
+  AuditEntry,
   ProjectSnapshot,
   REnvStatus,
   SiteMetadata
@@ -60,6 +61,9 @@ const api = {
   report: {
     exportPdf: (opts: { title: string }): Promise<string | null> =>
       ipcRenderer.invoke(IPC.reportExportPdf, opts)
+  },
+  audit: {
+    list: (): Promise<AuditEntry[]> => ipcRenderer.invoke(IPC.auditList)
   },
   env: {
     detectR: (): Promise<REnvStatus> => ipcRenderer.invoke(IPC.envDetectR),

@@ -227,6 +227,20 @@ export interface ProjectSnapshot {
   assessmentValues: AssessmentValue[]
 }
 
+// ---------------------------------------------------------------------------
+// Audit trail (GEP/GLP)
+// ---------------------------------------------------------------------------
+export interface AuditEntry {
+  id: number
+  ts: string // UTC ISO timestamp
+  actor: string // OS account
+  role: Role | ''
+  action: string // machine code, e.g. "assessment.value.set"
+  entity: string
+  summary: string // human-readable, includes old -> new where relevant
+  detail: Record<string, unknown>
+}
+
 /** Standard envelope returned by the R runner. */
 export interface RResponse<T> {
   ok: boolean

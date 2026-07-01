@@ -1,0 +1,83 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { mkdtempSync, rmSync } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
+import { openProject, closeProject } from './connection.js'
+import * as dao from './dao.js'
+import { recordAudit, listAudit } from './audit.js'
+
+let dir: string
+
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'openarm-audit-'))
+  openProject(join(dir, 'test.armproto'), { role: 'protocol', create: true })
+})
+
+afterEach(() => {
+  closeProject()
+  rmSync(dir, { recursive: true, force: true })
+})
+
+describe('audit trail', () => {
+  it('records entries and lists them newest-first with parsed detail + actor', () => {
+    recordAudit('protocol.edit', 'protocol', 'Edited protocol: title', {
+      changes: { title: { old: '', new: 'Rust' } }
+    })
+    recordAudit('treatments.replace', 'treatment', 'Updated treatments (2)')
+
+    const log = listAudit()
+    expect(log).toHaveLength(2)
+    // Newest first.
+    expect(log[0].action).toBe('treatments.replace')
+    expect(log[1].action).toBe('protocol.edit')
+    // Actor is populated from the OS account (non-empty).
+    expect(log[0].actor.length).toBeGreaterThan(0)
+    expect(log[0].role).toBe('protocol')
+    // Detail is parsed back into an object.
+    expect((log[1].detail.changes as Record<string, unknown>).title).toEqual({ old: '', new: 'Rust' })
+  })
+
+  it('getAssessmentValue returns the prior value then the updated one', () => {
+    // Minimal trial + plot + header to attach a value to.
+    dao.replaceTreatments([
+      { number: 1, name: 'A', product: '', rate: '', rateUnit: '', type: '' },
+      { number: 2, name: 'B', product: '', rate: '', rateUnit: '', type: '' }
+    ])
+    const t = dao.listTreatments()
+    const trialId = dao.replaceTrialWithPlots(
+      {
+        protocolId: 1,
+        plotRows: 1,
+        plotCols: 2,
+        seed: 1,
+        siteName: '',
+        operator: '',
+        location: '',
+        city: '',
+        state: '',
+        country: '',
+        plantingDate: '',
+        trialNotes: ''
+      },
+      [{ plotNumber: 1, rep: 1, treatmentId: t[0].id!, mapRow: 0, mapCol: 0 }]
+    )
+    const headerId = dao.upsertAssessmentHeader({
+      trialId,
+      partRated: '',
+      ratingType: 'CONTRO',
+      ratingUnit: '%',
+      timing: '',
+      ratingDate: '',
+      description: 'Control',
+      ordinal: 0,
+      origin: 'core',
+      locked: true,
+      analyze: true
+    })
+    const plotId = dao.listPlots(trialId)[0].id!
+
+    expect(dao.getAssessmentValue(headerId, plotId)).toBeNull()
+    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId, value: 42 })
+    expect(dao.getAssessmentValue(headerId, plotId)).toBe(42)
+  })
+})

@@ -6,6 +6,7 @@ import { TrialMapView } from './features/trialmap/TrialMapView'
 import { AssessmentsView } from './features/assessments/AssessmentsView'
 import { StatsView } from './features/stats/StatsView'
 import { ReportView } from './features/report/ReportView'
+import { AuditView } from './features/audit/AuditView'
 import { REnvBanner } from './components/REnvBanner'
 import type { Role, ProjectSnapshot } from '@shared/types'
 
@@ -19,14 +20,18 @@ interface NavItem {
 
 // Navigation differs by role: a protocol is authored; a trial is implemented.
 const NAV: Record<Role, NavItem[]> = {
-  protocol: [{ id: 'protocol', label: '1 · Protocol & Assessments' }],
+  protocol: [
+    { id: 'protocol', label: 'Protocol & Assessments' },
+    { id: 'audit', label: 'Audit' }
+  ],
   trial: [
-    { id: 'protocol', label: '1 · Protocol (locked)' },
-    { id: 'site', label: '2 · Site & Randomization' },
-    { id: 'trialmap', label: '3 · Trial Map', needsTrial: true },
-    { id: 'assessments', label: '4 · Assessments', needsTrial: true },
-    { id: 'stats', label: '5 · Statistics', needsTrial: true },
-    { id: 'report', label: '6 · Report', needsTrial: true }
+    { id: 'protocol', label: 'Protocol (locked)' },
+    { id: 'site', label: 'Site & Randomization' },
+    { id: 'trialmap', label: 'Trial Map', needsTrial: true },
+    { id: 'assessments', label: 'Assessments', needsTrial: true },
+    { id: 'stats', label: 'Statistics', needsTrial: true },
+    { id: 'report', label: 'Report', needsTrial: true },
+    { id: 'audit', label: 'Audit' }
   ]
 }
 
@@ -179,6 +184,7 @@ export default function App(): JSX.Element {
             {view === 'assessments' && <AssessmentsView />}
             {view === 'stats' && <StatsView />}
             {view === 'report' && <ReportView />}
+            {view === 'audit' && <AuditView />}
           </>
         )}
       </main>

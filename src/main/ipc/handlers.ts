@@ -17,6 +17,7 @@ import {
 import { z } from 'zod'
 import { openProject, closeProject, getCurrentPath } from '../db/connection.js'
 import * as dao from '../db/dao.js'
+import { recordAudit, listAudit } from '../db/audit.js'
 import { assertProtocolEditable, assertRole, assertHeaderEditable } from '../db/guards.js'
 
 const PROTO_FILTER = { name: 'Open ARM Protocol', extensions: ['armproto'] }
@@ -57,6 +58,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     })
     if (res.canceled || !res.filePath) return null
     openProject(res.filePath, { role: 'protocol', create: true })
+    recordAudit('protocol.create', 'protocol', 'Created new protocol')
     return dao.snapshot()
   })
 
@@ -73,28 +75,55 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   handle(IPC.protocolSave, (p: unknown) => {
     assertProtocolEditable()
-    dao.saveProtocol(Protocol.parse(p))
+    const next = Protocol.parse(p)
+    const prev = dao.getProtocol()
+    dao.saveProtocol(next)
+    const fields: (keyof Protocol)[] = [
+      'title', 'crop', 'targetPest', 'objective', 'investigator', 'season', 'notes',
+      'design', 'replicates', 'plotWidth', 'plotLength'
+    ]
+    const changes: Record<string, { old: unknown; new: unknown }> = {}
+    for (const f of fields) if (prev[f] !== next[f]) changes[f] = { old: prev[f], new: next[f] }
+    const changed = Object.keys(changes)
+    if (changed.length) {
+      recordAudit('protocol.edit', 'protocol', `Edited protocol: ${changed.join(', ')}`, { changes })
+    }
     return dao.getProtocol()
   })
 
   handle(IPC.treatmentsSave, (list: unknown) => {
     assertProtocolEditable()
     const treatments = z.array(Treatment).parse(list)
+    const before = dao.listTreatments()
     dao.replaceTreatments(treatments)
+    recordAudit('treatments.replace', 'treatment', `Updated treatments (${treatments.length})`, {
+      before,
+      after: dao.listTreatments()
+    })
     return dao.listTreatments()
   })
 
   handle(IPC.applicationsSave, (list: unknown) => {
     assertProtocolEditable()
     const apps = z.array(Application).parse(list)
+    const before = dao.listApplications()
     dao.replaceApplications(apps)
+    recordAudit('applications.replace', 'application', `Updated applications (${apps.length})`, {
+      before,
+      after: dao.listApplications()
+    })
     return dao.listApplications()
   })
 
   handle(IPC.assessmentDefSave, (list: unknown) => {
     assertProtocolEditable()
     const defs = z.array(AssessmentDef).parse(list)
+    const before = dao.listAssessmentDefs()
     dao.replaceAssessmentDefs(defs)
+    recordAudit('assessment.def.replace', 'assessment_def', `Updated core assessments (${defs.length})`, {
+      before,
+      after: dao.listAssessmentDefs()
+    })
     return dao.listAssessmentDefs()
   })
 
@@ -114,6 +143,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     })
     if (dstRes.canceled || !dstRes.filePath) return null
     dao.createTrialFromProtocol(srcRes.filePaths[0], dstRes.filePath)
+    const p = dao.getProtocol()
+    recordAudit(
+      'trial.create',
+      'trial',
+      `Created trial from protocol ${p.protocolUid.slice(0, 8) || '—'} v${p.protocolVersion}`,
+      { protocolUid: p.protocolUid, protocolVersion: p.protocolVersion }
+    )
     return dao.snapshot()
   })
 
@@ -133,6 +169,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     assertRole('trial')
     const cfg = GenerateTrialInput.parse(input)
     const protocol = dao.getProtocol()
+    const replaced = !!dao.getTrial()
     const treatments = dao.listTreatments()
     if (treatments.length < 2) throw new Error('Add at least 2 treatments before generating a trial.')
 
@@ -168,13 +205,25 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const trialId = dao.replaceTrialWithPlots(trial, plots)
     // Re-materialize the protocol's core assessment columns onto the fresh trial.
     dao.materializeCoreHeaders(trialId)
+    recordAudit(
+      'trial.generate',
+      'trial',
+      `Generated randomized layout (${protocol.design}, ${protocol.replicates} reps, seed ${seed}) — ${plots.length} plots${replaced ? ' (replaced previous layout + data)' : ''}`,
+      { design: protocol.design, replicates: protocol.replicates, seed, plots: plots.length, replaced }
+    )
     return dao.snapshot()
   })
 
   handle(IPC.plotSwap, (a: unknown, b: unknown) => {
     const plotIdA = z.number().int().parse(a)
     const plotIdB = z.number().int().parse(b)
+    const pa = dao.getPlot(plotIdA)
+    const pb = dao.getPlot(plotIdB)
     dao.swapPlotTreatments(plotIdA, plotIdB)
+    recordAudit('plot.swap', 'plot', `Swapped treatments: plot #${pa?.plotNumber} ↔ plot #${pb?.plotNumber}`, {
+      a: plotIdA,
+      b: plotIdB
+    })
     return dao.snapshot()
   })
 
@@ -184,6 +233,12 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     assertRole('trial')
     const header = AssessmentHeader.parse(h)
     dao.upsertAssessmentHeader({ ...header, id: undefined, origin: 'site', locked: false })
+    recordAudit(
+      'assessment.header.add',
+      'assessment_header',
+      `Added site assessment "${header.description || header.ratingType || 'assessment'}"`,
+      { header }
+    )
     const trial = dao.getTrial()
     return trial ? dao.listAssessmentHeaders(trial.id!) : []
   })
@@ -191,7 +246,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle(IPC.assessmentHeaderUpsert, (h: unknown) => {
     const header = AssessmentHeader.parse(h)
     if (header.id) assertHeaderEditable(header.id)
+    const before = header.id ? dao.getAssessmentHeader(header.id) : null
     dao.upsertAssessmentHeader(header)
+    const label = header.description || header.ratingType || 'assessment'
+    recordAudit(
+      'assessment.header.edit',
+      'assessment_header',
+      before ? `Edited assessment "${label}"` : `Added assessment "${label}"`,
+      { before, after: header }
+    )
     const trial = dao.getTrial()
     return trial ? dao.listAssessmentHeaders(trial.id!) : []
   })
@@ -199,13 +262,34 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle(IPC.assessmentHeaderDelete, (id: unknown) => {
     const headerId = z.number().int().parse(id)
     assertHeaderEditable(headerId)
+    const before = dao.getAssessmentHeader(headerId)
     dao.deleteAssessmentHeader(headerId)
+    recordAudit(
+      'assessment.header.delete',
+      'assessment_header',
+      `Deleted assessment "${before?.description || before?.ratingType || headerId}"`,
+      { before }
+    )
     const trial = dao.getTrial()
     return trial ? dao.listAssessmentHeaders(trial.id!) : []
   })
 
   handle(IPC.assessmentValueSet, (v: unknown) => {
-    dao.setAssessmentValue(AssessmentValue.parse(v))
+    const val = AssessmentValue.parse(v)
+    const newVal = val.value === null || Number.isNaN(val.value) ? null : val.value
+    const old = dao.getAssessmentValue(val.assessmentHeaderId, val.plotId)
+    dao.setAssessmentValue(val)
+    if (old !== newVal) {
+      const plot = dao.getPlot(val.plotId)
+      const header = dao.getAssessmentHeader(val.assessmentHeaderId)
+      const fmt = (x: number | null): string => (x === null ? '(empty)' : String(x))
+      recordAudit(
+        'assessment.value.set',
+        'assessment_value',
+        `Plot #${plot?.plotNumber ?? '?'} · ${header?.description || 'assessment'} · ${fmt(old)} → ${fmt(newVal)}`,
+        { plotId: val.plotId, headerId: val.assessmentHeaderId, old, new: newVal }
+      )
+    }
     return true
   })
 
@@ -215,6 +299,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const aovReq = AovRequest.parse(req)
     const result = await runAov(aovReq)
     dao.saveAnalysisResult(assessmentHeaderId, ENGINE_VERSION, aovReq, result)
+    const header = dao.getAssessmentHeader(assessmentHeaderId)
+    recordAudit(
+      'analysis.run',
+      'analysis_result',
+      `Ran ANOVA on "${header?.description || assessmentHeaderId}" (${aovReq.test}, α=${aovReq.alpha}) — ${result.significant ? 'significant' : 'not significant'}`,
+      { test: aovReq.test, alpha: aovReq.alpha, significant: result.significant }
+    )
     return result
   })
 
@@ -246,6 +337,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     shell.openPath(res.filePath)
     return res.filePath
   })
+
+  // --- Audit ---
+  handle(IPC.auditList, () => (getCurrentPath() ? listAudit() : []))
 
   // --- Environment ---
   handle(IPC.envDetectR, () => detectR())

@@ -30,6 +30,9 @@ export const IPC = {
   // Report
   reportExportPdf: 'report:exportPdf',
 
+  // Audit
+  auditList: 'audit:list',
+
   // Environment / R
   envDetectR: 'env:detectR',
   envSetRscriptPath: 'env:setRscriptPath'

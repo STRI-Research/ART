@@ -230,6 +230,23 @@ export function listPlots(trialId: number, db: Database.Database = getDb()): Plo
   }))
 }
 
+/** Fetch a single plot by id (used for audit summaries). */
+export function getPlot(id: number, db: Database.Database = getDb()): Plot | null {
+  const r = db.prepare(`SELECT * FROM plot WHERE id = ?`).get(id) as
+    | Record<string, unknown>
+    | undefined
+  if (!r) return null
+  return {
+    id: r.id as number,
+    trialId: r.trial_id as number,
+    plotNumber: r.plot_number as number,
+    rep: r.rep as number,
+    treatmentId: r.treatment_id as number,
+    mapRow: r.map_row as number,
+    mapCol: r.map_col as number
+  }
+}
+
 /** Swap the treatment assignment of two plots (ARM-style hot edit). */
 export function swapPlotTreatments(plotIdA: number, plotIdB: number, db: Database.Database = getDb()): void {
   const tx = db.transaction(() => {
@@ -338,6 +355,20 @@ export function listAssessmentValues(
     plotId: r.plot_id as number,
     value: r.value as number | null
   }))
+}
+
+/** Read one cell's current value (null if unset). Used to capture old→new for audit. */
+export function getAssessmentValue(
+  assessmentHeaderId: number,
+  plotId: number,
+  db: Database.Database = getDb()
+): number | null {
+  const r = db
+    .prepare(
+      `SELECT value FROM assessment_value WHERE assessment_header_id = ? AND plot_id = ?`
+    )
+    .get(assessmentHeaderId, plotId) as { value: number | null } | undefined
+  return r ? r.value : null
 }
 
 /** Set (or clear) one cell. A null value deletes the row. */

@@ -128,3 +128,17 @@ CREATE TABLE IF NOT EXISTS analysis_result (
   result_json          TEXT NOT NULL DEFAULT '{}',
   created_at           TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- GEP/GLP audit trail. Append-only: the app never updates or deletes rows and
+-- exposes no edit UI. One row per data-changing action, attributed to the OS
+-- account, stored inside the file so it travels with the record.
+CREATE TABLE IF NOT EXISTS audit_log (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), -- UTC ISO
+  actor   TEXT NOT NULL DEFAULT '',   -- OS username
+  role    TEXT NOT NULL DEFAULT '',   -- protocol | trial at time of change
+  action  TEXT NOT NULL DEFAULT '',   -- machine code, e.g. assessment.value.set
+  entity  TEXT NOT NULL DEFAULT '',   -- subject, e.g. assessment_value
+  summary TEXT NOT NULL DEFAULT '',   -- human-readable one-liner incl. old -> new
+  detail  TEXT NOT NULL DEFAULT '{}'  -- JSON: structured old/new/context
+);
