@@ -131,6 +131,7 @@ export function ProtocolView(): JSX.Element {
             >
               <option value="RCB">Randomized Complete Block</option>
               <option value="CRD">Completely Randomized</option>
+              <option value="ALPHA">Incomplete Block (Alpha)</option>
             </select>
           </div>
           <div style={{ width: 110 }}>
@@ -145,6 +146,19 @@ export function ProtocolView(): JSX.Element {
               onBlur={() => saveProtocol()}
             />
           </div>
+          {protocol.design === 'ALPHA' && (
+            <div style={{ width: 110 }}>
+              <label>Block size (k)</label>
+              <input
+                type="number"
+                min={2}
+                disabled={readOnly}
+                value={protocol.blockSize}
+                onChange={(e) => setProtocol({ ...protocol, blockSize: Number(e.target.value) })}
+                onBlur={() => saveProtocol()}
+              />
+            </div>
+          )}
           <div style={{ width: 110 }}>
             <label>Plot width</label>
             <input
@@ -166,6 +180,15 @@ export function ProtocolView(): JSX.Element {
             />
           </div>
         </div>
+        {protocol.design === 'ALPHA' && (
+          <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+            The treatment count must be divisible by the block size (k), and k must be smaller than
+            the treatment count. Each replicate is split into {treatments.length && protocol.blockSize
+              ? Math.max(1, Math.floor(treatments.length / protocol.blockSize))
+              : 'n'}{' '}
+            incomplete blocks of {protocol.blockSize} plots.
+          </p>
+        )}
       </div>
 
       <div className="card">

@@ -24,8 +24,9 @@ CREATE TABLE IF NOT EXISTS protocol (
   investigator     TEXT NOT NULL DEFAULT '',
   season           TEXT NOT NULL DEFAULT '',
   notes            TEXT NOT NULL DEFAULT '',
-  design           TEXT NOT NULL DEFAULT 'RCB' CHECK (design IN ('RCB', 'CRD')),
+  design           TEXT NOT NULL DEFAULT 'RCB' CHECK (design IN ('RCB', 'CRD', 'ALPHA')),
   replicates       INTEGER NOT NULL DEFAULT 4,
+  block_size       INTEGER NOT NULL DEFAULT 2, -- incomplete-block size (k) for the ALPHA design
   plot_width       REAL NOT NULL DEFAULT 0,
   plot_length      REAL NOT NULL DEFAULT 0
 );
@@ -90,6 +91,7 @@ CREATE TABLE IF NOT EXISTS plot (
   trial_id     INTEGER NOT NULL REFERENCES trial(id) ON DELETE CASCADE,
   plot_number  INTEGER NOT NULL,
   rep          INTEGER NOT NULL,
+  block        INTEGER NOT NULL DEFAULT 0, -- incomplete block within the rep (ALPHA); = rep otherwise
   treatment_id INTEGER NOT NULL REFERENCES treatment(id) ON DELETE CASCADE,
   map_row      INTEGER NOT NULL,
   map_col      INTEGER NOT NULL,

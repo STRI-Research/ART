@@ -75,7 +75,8 @@ export function TrialMapView(): JSX.Element {
     <div className="card">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <h2 style={{ margin: 0 }}>
-          Trial Map — {protocol.design}, {protocol.replicates} reps, {plots.length} plots
+          Trial Map — {protocol.design}, {protocol.replicates} reps
+          {protocol.design === 'ALPHA' && `, block size ${protocol.blockSize}`}, {plots.length} plots
         </h2>
         {locked ? (
           <span className="lock-badge">🔒 Locked {new Date(trial.layoutLockedAt).toLocaleString()}</span>
@@ -120,6 +121,7 @@ export function TrialMapView(): JSX.Element {
                 <div className="trt">{treatmentName(p.treatmentId)}</div>
                 <div className="muted" style={{ fontSize: 11 }}>
                   Rep {p.rep}
+                  {protocol.design === 'ALPHA' && ` · Blk ${p.block}`}
                 </div>
               </div>
             ) : (

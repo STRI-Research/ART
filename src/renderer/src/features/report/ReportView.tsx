@@ -51,6 +51,7 @@ export function ReportView(): JSX.Element {
             design: protocol.design,
             test,
             alpha,
+            blockSize: protocol.design === 'ALPHA' ? protocol.blockSize : undefined,
             data: obsByHeader.get(h.id!)!
           })
           setAov(h.id!, result)
@@ -286,7 +287,7 @@ export function ReportView(): JSX.Element {
                     {result && !result.note ? (
                       <>
                         <td className="num">{result.grandMean.toFixed(3)}</td>
-                        <td className="num">{result.cv.toFixed(2)}</td>
+                        <td className="num">{Number.isFinite(result.cv) ? result.cv.toFixed(2) : '—'}</td>
                         <td className="num">
                           {result.lsd != null ? `${result.criticalValueLabel} ${result.lsd.toFixed(3)}` : '—'}
                         </td>

@@ -26,6 +26,10 @@ export function StatsView(): JSX.Element {
   )
   const rReady = rEnv?.rscriptFound && rEnv?.agricolaeInstalled
 
+  const isAlpha = snapshot!.protocol.design === 'ALPHA'
+  // Duncan/SNK aren't defined for incomplete-block designs; PBIB.test falls back to LSD grouping.
+  const lsdFallback = isAlpha && (test === 'DUNCAN' || test === 'SNK')
+
   const runAnalysis = (): void => {
     if (!headerId) return
     run('Running ANOVA', async () => {
@@ -33,6 +37,7 @@ export function StatsView(): JSX.Element {
         design: snapshot!.protocol.design,
         test,
         alpha,
+        blockSize: isAlpha ? snapshot!.protocol.blockSize : undefined,
         data: obs
       })
       setAov(headerId, result)
@@ -91,6 +96,12 @@ export function StatsView(): JSX.Element {
             </button>
             <span className="muted">{obs.length} observations</span>
           </div>
+        )}
+        {isAlpha && headers.length > 0 && (
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Incomplete-block (alpha) design: treatment means are block-adjusted (PBIB).
+            {lsdFallback && ' Duncan/SNK aren’t defined here — LSD grouping is shown instead.'}
+          </p>
         )}
       </div>
 

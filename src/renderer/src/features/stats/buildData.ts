@@ -3,6 +3,8 @@ import type { ProjectSnapshot } from '@shared/types'
 export interface Observation {
   treatment: number
   rep: number
+  /** Incomplete block within the replicate (ALPHA); equals rep for complete-block designs. */
+  block: number
   value: number
 }
 
@@ -16,7 +18,10 @@ export function buildObservations(snapshot: ProjectSnapshot, headerId: number): 
   const plotById = new Map(snapshot.plots.map((p) => [p.id!, p]))
   const trtNumberById = new Map(snapshot.treatments.map((t) => [t.id!, t.number]))
   // Accumulate subsample sum + count per plot, preserving first-seen order.
-  const acc = new Map<number, { sum: number; count: number; rep: number; treatment: number }>()
+  const acc = new Map<
+    number,
+    { sum: number; count: number; rep: number; block: number; treatment: number }
+  >()
   for (const v of snapshot.assessmentValues) {
     if (v.assessmentHeaderId !== headerId || v.value === null) continue
     const plot = plotById.get(v.plotId)
@@ -28,12 +33,12 @@ export function buildObservations(snapshot: ProjectSnapshot, headerId: number): 
       cur.sum += v.value
       cur.count += 1
     } else {
-      acc.set(v.plotId, { sum: v.value, count: 1, rep: plot.rep, treatment })
+      acc.set(v.plotId, { sum: v.value, count: 1, rep: plot.rep, block: plot.block, treatment })
     }
   }
   const out: Observation[] = []
-  for (const { sum, count, rep, treatment } of acc.values()) {
-    out.push({ treatment, rep, value: sum / count })
+  for (const { sum, count, rep, block, treatment } of acc.values()) {
+    out.push({ treatment, rep, block, value: sum / count })
   }
   return out
 }

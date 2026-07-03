@@ -33,6 +33,7 @@ export function getProtocol(db: Database.Database = getDb()): Protocol {
     notes: r.notes as string,
     design: r.design as Protocol['design'],
     replicates: r.replicates as number,
+    blockSize: (r.block_size as number) ?? 2,
     plotWidth: r.plot_width as number,
     plotLength: r.plot_length as number
   }
@@ -56,7 +57,8 @@ export function saveProtocol(
   db.prepare(
     `UPDATE protocol SET title=@title, crop=@crop, target_pest=@targetPest,
        objective=@objective, investigator=@investigator, season=@season, notes=@notes,
-       design=@design, replicates=@replicates, plot_width=@plotWidth, plot_length=@plotLength
+       design=@design, replicates=@replicates, block_size=@blockSize,
+       plot_width=@plotWidth, plot_length=@plotLength
      WHERE id = 1`
   ).run({
     title: p.title,
@@ -68,6 +70,7 @@ export function saveProtocol(
     notes: p.notes,
     design: p.design,
     replicates: p.replicates,
+    blockSize: p.blockSize ?? 2,
     plotWidth: p.plotWidth,
     plotLength: p.plotLength
   })
@@ -200,7 +203,11 @@ export function getTrial(db: Database.Database = getDb()): Trial | null {
 /** Persist a freshly generated trial + its plots, replacing any prior trial. */
 export function replaceTrialWithPlots(
   trial: Omit<Trial, 'id' | 'layoutLockedAt'>,
-  plots: Omit<Plot, 'id' | 'trialId' | 'excluded' | 'excludeReason'>[],
+  // `block` is optional here; complete-block designs (RCB/CRD) leave it out and it
+  // defaults to the replicate. ALPHA layouts pass the incomplete-block index.
+  plots: (Omit<Plot, 'id' | 'trialId' | 'excluded' | 'excludeReason' | 'block'> & {
+    block?: number
+  })[],
   db: Database.Database = getDb()
 ): number {
   const tx = db.transaction(() => {
@@ -215,10 +222,10 @@ export function replaceTrialWithPlots(
       .run(trial)
     const trialId = info.lastInsertRowid as number
     const ins = db.prepare(
-      `INSERT INTO plot (trial_id, plot_number, rep, treatment_id, map_row, map_col)
-       VALUES (@trialId, @plotNumber, @rep, @treatmentId, @mapRow, @mapCol)`
+      `INSERT INTO plot (trial_id, plot_number, rep, block, treatment_id, map_row, map_col)
+       VALUES (@trialId, @plotNumber, @rep, @block, @treatmentId, @mapRow, @mapCol)`
     )
-    for (const p of plots) ins.run({ ...p, trialId })
+    for (const p of plots) ins.run({ ...p, block: p.block ?? p.rep, trialId })
     return trialId
   })
   return tx()
@@ -233,6 +240,7 @@ export function listPlots(trialId: number, db: Database.Database = getDb()): Plo
     trialId: r.trial_id as number,
     plotNumber: r.plot_number as number,
     rep: r.rep as number,
+    block: (r.block as number) ?? (r.rep as number),
     treatmentId: r.treatment_id as number,
     mapRow: r.map_row as number,
     mapCol: r.map_col as number,
@@ -252,6 +260,7 @@ export function getPlot(id: number, db: Database.Database = getDb()): Plot | nul
     trialId: r.trial_id as number,
     plotNumber: r.plot_number as number,
     rep: r.rep as number,
+    block: (r.block as number) ?? (r.rep as number),
     treatmentId: r.treatment_id as number,
     mapRow: r.map_row as number,
     mapCol: r.map_col as number,

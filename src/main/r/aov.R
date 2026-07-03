@@ -44,6 +44,103 @@ tryCatch({
   nTrt <- nlevels(df$treatment)
   nRep <- nlevels(df$rep)
 
+  if (identical(design, "ALPHA")) {
+    # --- Resolvable incomplete block (alpha) design: block-adjusted analysis. ---
+    blockSize <- if (is.null(req$blockSize)) NA_integer_ else as.integer(req$blockSize)
+    df$block  <- droplevels(factor(df$block))
+    testCode  <- if (identical(test, "TUKEY")) "tukey" else "lsd" # Duncan/SNK -> LSD (UI notes it)
+
+    if (nrow(df) < 3 || nTrt < 2 || nlevels(df$block) < 2 || is.na(blockSize)) {
+      emitInsufficient("Not enough data to analyze — an incomplete-block design needs at least two treatments across replicated incomplete blocks.")
+    } else {
+      # REML needs nlme; fall back to the variance-components fit if it isn't available.
+      runPbib <- function(m) tryCatch(
+        PBIB.test(df$block, df$treatment, df$rep, df$value, k = blockSize,
+                  method = m, test = testCode, alpha = alpha, group = TRUE, console = FALSE),
+        error = function(e) NULL
+      )
+      pbib <- runPbib("REML"); if (is.null(pbib)) pbib <- runPbib("VC")
+
+      if (is.null(pbib)) {
+        emitInsufficient("The incomplete-block analysis could not be computed for this dataset (likely unbalanced or under-replicated).")
+      } else {
+        # First present column among candidates (PBIB output shape varies by method).
+        pick <- function(dfr, names) {
+          hit <- intersect(names, colnames(dfr))
+          if (length(hit) >= 1) dfr[[hit[1]]] else rep(NA, nrow(dfr))
+        }
+
+        # ANOVA rows: a REML fit has no SS/MS, so those stay NA (renderer blanks them).
+        atab <- tryCatch(as.data.frame(pbib$ANOVA), error = function(e) NULL)
+        anovaRows <- if (is.null(atab)) list() else lapply(seq_len(nrow(atab)), function(i) {
+          list(
+            source = rownames(atab)[i],
+            df     = pick(atab, c("Df", "numDF"))[i],
+            ss     = pick(atab, c("Sum Sq"))[i],
+            ms     = pick(atab, c("Mean Sq"))[i],
+            f      = pick(atab, c("F value", "F-value", "F.value"))[i],
+            pValue = pick(atab, c("Pr(>F)", "p-value", "p.value"))[i]
+          )
+        })
+
+        stats <- tryCatch(as.data.frame(pbib$statistics), error = function(e) NULL)
+        grandMean <- if (!is.null(stats) && "Mean" %in% colnames(stats)) stats$Mean[1] else mean(df$value)
+        cv        <- if (!is.null(stats) && "CV"   %in% colnames(stats)) stats$CV[1]   else NA
+
+        # Adjusted treatment means + separation letters from $groups (fallback $means).
+        groups <- tryCatch(as.data.frame(pbib$groups), error = function(e) NULL)
+        means  <- tryCatch(as.data.frame(pbib$means),  error = function(e) NULL)
+        grpLetters <- if (!is.null(groups) && "groups" %in% colnames(groups))
+          setNames(as.character(groups$groups), rownames(groups)) else character(0)
+        meanCol <- if (!is.null(groups)) {
+          nonGrp <- colnames(groups)[colnames(groups) != "groups"]; if (length(nonGrp)) nonGrp[1] else NA
+        } else NA
+        labels <- if (!is.null(groups)) rownames(groups)
+                  else if (!is.null(means)) rownames(means) else character(0)
+
+        meanRows <- lapply(labels, function(t) {
+          adj <- if (!is.null(groups) && !is.na(meanCol)) groups[t, meanCol]
+                 else if (!is.null(means)) means[t, 1] else NA
+          list(
+            treatment = as.integer(as.character(t)),
+            mean      = as.numeric(adj),
+            n         = if (!is.null(means) && "r"   %in% colnames(means)) means[t, "r"]   else NA,
+            std       = if (!is.null(means) && "std" %in% colnames(means)) means[t, "std"] else NA,
+            group     = if (length(grpLetters) && !is.na(grpLetters[t])) grpLetters[[t]] else ""
+          )
+        })
+        meanRows <- if (length(meanRows))
+          meanRows[order(sapply(meanRows, function(m) m$treatment))] else list()
+
+        # Treatment-effect significance from $Fstat, else the ANOVA treatment row.
+        trtP <- NA
+        fs <- tryCatch(as.data.frame(pbib$Fstat), error = function(e) NULL)
+        if (!is.null(fs)) {
+          pcol <- intersect(c("p.value", "p-value", "Pr(>F)"), colnames(fs))
+          if (length(pcol)) trtP <- fs[[pcol[1]]][1]
+        }
+        if (is.na(trtP)) {
+          idx <- which(sapply(anovaRows, function(r) grepl("trt|treat", r$source, ignore.case = TRUE)))
+          if (length(idx) >= 1) trtP <- anovaRows[[idx[1]]]$pValue
+        }
+        significant <- !is.na(trtP) && trtP < alpha
+
+        emit(list(ok = TRUE, result = list(
+          anova              = anovaRows,
+          means              = meanRows,
+          grandMean          = grandMean,
+          cv                 = cv,
+          lsd                = NA,
+          criticalValueLabel = paste0("LSD (", alpha, ")"),
+          stdError           = NA,
+          test               = test,
+          alpha              = alpha,
+          significant        = significant
+        )))
+      }
+    }
+  } else {
+
   # Guard the degenerate designs that make aov()/agricolae error, before building the model.
   model <- if (nrow(df) < 3 || nTrt < 2) {
     NULL
@@ -140,6 +237,7 @@ tryCatch({
 
       emit(list(ok = TRUE, result = result))
     }
+  }
   }
   }
 }, error = function(e) {

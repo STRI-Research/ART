@@ -39,6 +39,14 @@ describe('protocol', () => {
     expect(dao.getProtocol().title).toBe('Corn Rust Trial')
     expect(dao.getProtocol().crop).toBe('Corn')
   })
+
+  it('defaults block size and round-trips the ALPHA design + block size', () => {
+    expect(dao.getProtocol().blockSize).toBe(2) // schema default
+    dao.saveProtocol({ ...dao.getProtocol(), design: 'ALPHA', blockSize: 3 })
+    const p = dao.getProtocol()
+    expect(p.design).toBe('ALPHA')
+    expect(p.blockSize).toBe(3)
+  })
 })
 
 describe('treatments', () => {
@@ -103,6 +111,27 @@ describe('trial + plots + assessments', () => {
     })
     return { headerId, plots: dao.listPlots(trialId) }
   }
+
+  it('defaults plot.block to the rep, and round-trips an explicit incomplete block', () => {
+    dao.replaceTreatments(
+      [1, 2, 3, 4].map((n) => ({ number: n, name: `T${n}`, product: '', rate: '', rateUnit: '', type: '' }))
+    )
+    const t = dao.listTreatments()
+    // Two treatments per incomplete block (block size 2), one replicate: blocks 1 and 2.
+    const trialId = dao.replaceTrialWithPlots(
+      { protocolId: 1, plotRows: 2, plotCols: 2, seed: 7, ...SITE },
+      [
+        { plotNumber: 1, rep: 1, block: 1, treatmentId: t[0].id!, mapRow: 0, mapCol: 0 },
+        { plotNumber: 2, rep: 1, block: 1, treatmentId: t[1].id!, mapRow: 0, mapCol: 1 },
+        { plotNumber: 3, rep: 1, block: 2, treatmentId: t[2].id!, mapRow: 1, mapCol: 0 },
+        // block omitted -> defaults to rep
+        { plotNumber: 4, rep: 1, treatmentId: t[3].id!, mapRow: 1, mapCol: 1 }
+      ]
+    )
+    const plots = dao.listPlots(trialId)
+    expect(plots.map((p) => p.block)).toEqual([1, 1, 2, 1])
+    expect(dao.getPlot(plots[0].id!)!.block).toBe(1)
+  })
 
   it('persists a trial with plots and cascades on replace', () => {
     const { plots } = seedTrial()

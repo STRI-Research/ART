@@ -6,8 +6,15 @@ import { z } from 'zod'
  * source of truth for the data model described in the project plan.
  */
 
-export const DesignType = z.enum(['RCB', 'CRD'])
+export const DesignType = z.enum(['RCB', 'CRD', 'ALPHA'])
 export type DesignType = z.infer<typeof DesignType>
+
+/** Human-readable design names for UI selectors, map headers, and reports. */
+export const DESIGN_LABELS: Record<DesignType, string> = {
+  RCB: 'Randomized Complete Block',
+  CRD: 'Completely Randomized',
+  ALPHA: 'Incomplete Block (Alpha)'
+}
 
 /** Document role: an authored protocol template, or a local trial instance. */
 export const Role = z.enum(['protocol', 'trial'])
@@ -40,6 +47,9 @@ export const Protocol = z.object({
   // Experimental design is dictated by the protocol; sites differ only by randomization.
   design: DesignType.default('RCB'),
   replicates: z.number().int().min(2).max(20).default(4),
+  // Incomplete-block size (k) for the ALPHA design; ignored by RCB/CRD. The
+  // treatment count must be divisible by k and k < treatment count.
+  blockSize: z.number().int().min(2).default(2),
   plotWidth: z.number().default(0),
   plotLength: z.number().default(0)
 })
@@ -97,6 +107,8 @@ export const Plot = z.object({
   trialId: z.number().int(),
   plotNumber: z.number().int(),
   rep: z.number().int(),
+  /** Incomplete block within the replicate (ALPHA); equals `rep` for complete-block designs. */
+  block: z.number().int().default(0),
   treatmentId: z.number().int(),
   mapRow: z.number().int(),
   mapCol: z.number().int(),
@@ -148,6 +160,8 @@ export const RandomizeRequest = z.object({
   design: DesignType,
   treatments: z.number().int().min(2),
   replicates: z.number().int().min(2),
+  /** Incomplete-block size (k) for ALPHA; unused by RCB/CRD. */
+  blockSize: z.number().int().min(2).optional(),
   seed: z.number().int()
 })
 export type RandomizeRequest = z.infer<typeof RandomizeRequest>
@@ -156,6 +170,8 @@ export type RandomizeRequest = z.infer<typeof RandomizeRequest>
 export interface RandomizedPlot {
   order: number
   rep: number
+  /** Incomplete block within the replicate (ALPHA); equals `rep` for complete-block designs. */
+  block: number
   treatment: number // treatment *number* (1-based), mapped to treatmentId by caller
 }
 
@@ -166,11 +182,15 @@ export const AovRequest = z.object({
   design: DesignType,
   test: MeanComparisonTest,
   alpha: AlphaLevel,
-  /** Long-form observations. treatment = 1-based number, rep = 1-based block. */
+  /** Incomplete-block size (k) for ALPHA; unused by RCB/CRD. */
+  blockSize: z.number().int().min(2).optional(),
+  /** Long-form observations. treatment = 1-based number, rep = 1-based replicate. */
   data: z.array(
     z.object({
       treatment: z.number().int(),
       rep: z.number().int(),
+      /** Incomplete block (ALPHA only); ignored by RCB/CRD. */
+      block: z.number().int().optional(),
       value: z.number()
     })
   )
@@ -180,8 +200,9 @@ export type AovRequest = z.infer<typeof AovRequest>
 export interface AovAnovaRow {
   source: string
   df: number
-  ss: number
-  ms: number
+  // SS/MS are absent for the ALPHA design's REML fit (PBIB.test), hence nullable.
+  ss: number | null
+  ms: number | null
   f: number | null
   pValue: number | null
 }

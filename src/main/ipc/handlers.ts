@@ -87,7 +87,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     dao.saveProtocol(next)
     const fields: (keyof Protocol)[] = [
       'title', 'crop', 'targetPest', 'objective', 'investigator', 'season', 'notes',
-      'design', 'replicates', 'plotWidth', 'plotLength'
+      'design', 'replicates', 'blockSize', 'plotWidth', 'plotLength'
     ]
     const changes: Record<string, { old: unknown; new: unknown }> = {}
     for (const f of fields) if (prev[f] !== next[f]) changes[f] = { old: prev[f], new: next[f] }
@@ -205,17 +205,32 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const treatments = dao.listTreatments()
     if (treatments.length < 2) throw new Error('Add at least 2 treatments before generating a trial.')
 
+    // The ALPHA (incomplete block) design needs a block size that evenly divides the
+    // treatment count and is strictly smaller than it; validate before calling R for a
+    // clear message rather than agricolae's terse error.
+    if (protocol.design === 'ALPHA') {
+      const k = protocol.blockSize
+      if (!(k >= 2 && k < treatments.length)) {
+        throw new Error(`Block size (${k}) must be at least 2 and smaller than the treatment count (${treatments.length}).`)
+      }
+      if (treatments.length % k !== 0) {
+        throw new Error(`Block size (${k}) must evenly divide the treatment count (${treatments.length}) for an alpha design.`)
+      }
+    }
+
     const seed = cfg.seed ?? Math.floor(Math.random() * 1_000_000)
     const randomized = await randomize({
       design: protocol.design,
       treatments: treatments.length,
       replicates: protocol.replicates,
+      blockSize: protocol.design === 'ALPHA' ? protocol.blockSize : undefined,
       seed
     })
 
-    // Layout: columns = treatment count, one row per replicate block (row-major).
-    const plotCols = treatments.length
-    const plotRows = protocol.replicates
+    // Layout: RCB/CRD lay out one full replicate per row (columns = treatments). ALPHA
+    // lays out one incomplete block per row (columns = block size k).
+    const plotCols = protocol.design === 'ALPHA' ? protocol.blockSize : treatments.length
+    const plotRows = Math.ceil(randomized.length / plotCols)
     const byNumber = new Map(treatments.map((t) => [t.number, t.id!]))
 
     const plots: Omit<Plot, 'id' | 'trialId' | 'excluded' | 'excludeReason'>[] = randomized.map((rp) => {
@@ -226,6 +241,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       return {
         plotNumber: rp.order,
         rep: rp.rep,
+        block: rp.block,
         treatmentId,
         mapRow: Math.floor((rp.order - 1) / plotCols),
         mapCol: (rp.order - 1) % plotCols
@@ -237,11 +253,19 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const trialId = dao.replaceTrialWithPlots(trial, plots)
     // Re-materialize the protocol's core assessment columns onto the fresh trial.
     dao.materializeCoreHeaders(trialId)
+    const blockNote = protocol.design === 'ALPHA' ? `, block size ${protocol.blockSize}` : ''
     recordAudit(
       'trial.generate',
       'trial',
-      `Generated randomized layout (${protocol.design}, ${protocol.replicates} reps, seed ${seed}) — ${plots.length} plots${replaced ? ' (replaced previous layout + data)' : ''}`,
-      { design: protocol.design, replicates: protocol.replicates, seed, plots: plots.length, replaced }
+      `Generated randomized layout (${protocol.design}, ${protocol.replicates} reps${blockNote}, seed ${seed}) — ${plots.length} plots${replaced ? ' (replaced previous layout + data)' : ''}`,
+      {
+        design: protocol.design,
+        replicates: protocol.replicates,
+        ...(protocol.design === 'ALPHA' ? { blockSize: protocol.blockSize } : {}),
+        seed,
+        plots: plots.length,
+        replaced
+      }
     )
     return dao.snapshot()
   })
