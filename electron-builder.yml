@@ -1,5 +1,5 @@
-appId: com.openarm.app
-productName: Open ARM
+appId: com.art.app
+productName: ART
 directories:
   buildResources: build
   output: dist-app

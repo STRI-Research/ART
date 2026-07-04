@@ -1,4 +1,4 @@
--- Open ARM schema. One SQLite file is either a PROTOCOL (authored template) or a
+-- ART schema. One SQLite file is either a PROTOCOL (authored template) or a
 -- TRIAL (a locally implemented instance of a protocol). meta.role selects which.
 --   protocol file: protocol + treatment + application + assessment_def (no trial/plots)
 --   trial file:    a locked copy of the protocol tables + one trial + plots + data

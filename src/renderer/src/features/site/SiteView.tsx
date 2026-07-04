@@ -37,7 +37,7 @@ export function SiteView(): JSX.Element {
   const generate = (): void => {
     const seed = seedText.trim() === '' ? undefined : Number(seedText)
     run('Generating randomized trial', async () => {
-      const next = await window.arm.trial.generate({ ...site, seed })
+      const next = await window.art.trial.generate({ ...site, seed })
       setSnapshot(next)
       setView('trialmap')
     })

@@ -3,7 +3,7 @@ import { Menu, shell, type BrowserWindow, type MenuItemConstructorOptions } from
 /**
  * Native application menu. App-specific items delegate to the renderer via
  * `webContents.send('menu', <action>)` so all dialog/snapshot logic stays in one
- * place (the renderer's window.arm flows + store).
+ * place (the renderer's window.art flows + store).
  */
 export function buildMenu(win: BrowserWindow): Menu {
   const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -49,7 +49,7 @@ export function buildMenu(win: BrowserWindow): Menu {
       role: 'help',
       submenu: [
         {
-          label: 'Open ARM on GitHub',
+          label: 'ART on GitHub',
           click: () => {
             shell.openExternal('https://github.com/charles-gentry/leg')
           }

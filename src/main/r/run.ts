@@ -7,7 +7,7 @@ import type { RResponse } from '@shared/types.js'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 /** Allow overriding the Rscript binary (e.g. a non-PATH install). */
-let rscriptPath = process.env.OPENARM_RSCRIPT || 'Rscript'
+let rscriptPath = process.env.ART_RSCRIPT || 'Rscript'
 
 export function setRscriptPath(p: string): void {
   rscriptPath = p || 'Rscript'

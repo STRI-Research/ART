@@ -15,7 +15,7 @@ function createWindow(): void {
     height: 860,
     minWidth: 940,
     minHeight: 600,
-    title: 'Open ARM',
+    title: 'ART',
     show: false,
     autoHideMenuBar: false,
     webPreferences: {

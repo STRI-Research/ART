@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# Randomization sidecar for Open ARM.
+# Randomization sidecar for ART.
 # Reads JSON { design, treatments, replicates, blockSize, seed } on stdin.
 # Writes JSON { ok, result: [ { order, rep, block, treatment } ] } on stdout.
 # `treatment` is the 1-based treatment number; `rep` is the 1-based replicate;

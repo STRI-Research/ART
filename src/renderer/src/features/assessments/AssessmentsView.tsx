@@ -150,7 +150,7 @@ export function AssessmentsView(): JSX.Element {
     })
     if (changes.length === 0) return
     run('Saving data', async () => {
-      for (const c of changes) await window.arm.assessments.setValue(c)
+      for (const c of changes) await window.art.assessments.setValue(c)
       // Reflect changes locally without a full round-trip.
       const map = new Map(
         snapshot!.assessmentValues.map((v) => [
@@ -248,7 +248,7 @@ function HeaderManager({
 
   const add = (): void => {
     run('Adding assessment', async () => {
-      const next = await window.arm.assessments.addSiteHeader({
+      const next = await window.art.assessments.addSiteHeader({
         trialId,
         partRated: draft.partRated,
         ratingType: draft.ratingType,
@@ -270,21 +270,21 @@ function HeaderManager({
 
   const setSubsamples = (h: AssessmentHeader, n: number): void => {
     run('Updating assessment', async () => {
-      const next = await window.arm.assessments.upsertHeader({ ...h, subsamples: Math.max(1, n || 1) })
+      const next = await window.art.assessments.upsertHeader({ ...h, subsamples: Math.max(1, n || 1) })
       setSnapshot({ ...snapshot!, assessmentHeaders: next })
     })
   }
 
   const remove = (id: number): void => {
     run('Removing assessment', async () => {
-      const next = await window.arm.assessments.deleteHeader(id)
+      const next = await window.art.assessments.deleteHeader(id)
       setSnapshot({ ...snapshot!, assessmentHeaders: next })
     })
   }
 
   const toggleAnalyze = (h: AssessmentHeader): void => {
     run('Updating assessment', async () => {
-      const next = await window.arm.assessments.upsertHeader({ ...h, analyze: !h.analyze })
+      const next = await window.art.assessments.upsertHeader({ ...h, analyze: !h.analyze })
       setSnapshot({ ...snapshot!, assessmentHeaders: next })
     })
   }

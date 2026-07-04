@@ -5,5 +5,5 @@ dist-app/
 *.tsbuildinfo
 .DS_Store
 # Local test project files
-*.armdb
-!src/**/*.armdb
+*.artdb
+!src/**/*.artdb

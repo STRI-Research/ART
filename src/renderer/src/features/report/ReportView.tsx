@@ -47,7 +47,7 @@ export function ReportView(): JSX.Element {
     run('Analyzing all assessments', async () => {
       for (const h of eligible) {
         try {
-          const result = await window.arm.stats.runAov(h.id!, {
+          const result = await window.art.stats.runAov(h.id!, {
             design: protocol.design,
             test,
             alpha,
@@ -105,7 +105,7 @@ export function ReportView(): JSX.Element {
 
   const exportPdf = (): void => {
     run('Exporting PDF', async () => {
-      await window.arm.report.exportPdf({ title: protocol.title || 'Trial Report' })
+      await window.art.report.exportPdf({ title: protocol.title || 'Trial Report' })
     })
   }
 

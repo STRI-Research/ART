@@ -22,8 +22,8 @@ const SITE = {
 let dir: string
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'openarm-'))
-  openProject(join(dir, 'test.armdb'))
+  dir = mkdtempSync(join(tmpdir(), 'art-'))
+  openProject(join(dir, 'test.artdb'))
 })
 
 afterEach(() => {
@@ -239,8 +239,8 @@ describe('protocol → trial', () => {
   }
 
   it('copies a protocol into a locked trial file verbatim', () => {
-    const uid = authorProtocol(join(dir, 'p.armproto'))
-    dao.createTrialFromProtocol(join(dir, 'p.armproto'), join(dir, 't.armtrial'))
+    const uid = authorProtocol(join(dir, 'p.artproto'))
+    dao.createTrialFromProtocol(join(dir, 'p.artproto'), join(dir, 't.arttrial'))
 
     expect(getRole()).toBe('trial')
     const p = dao.getProtocol()
@@ -254,8 +254,8 @@ describe('protocol → trial', () => {
   })
 
   it('materializes locked core headers when the layout is generated', () => {
-    authorProtocol(join(dir, 'p.armproto'))
-    dao.createTrialFromProtocol(join(dir, 'p.armproto'), join(dir, 't.armtrial'))
+    authorProtocol(join(dir, 'p.artproto'))
+    dao.createTrialFromProtocol(join(dir, 'p.artproto'), join(dir, 't.arttrial'))
     const trialId = dao.replaceTrialWithPlots(
       { protocolId: 1, plotRows: 3, plotCols: 2, seed: 5, ...SITE, siteName: 'Site A' },
       []
@@ -270,8 +270,8 @@ describe('protocol → trial', () => {
   })
 
   it('guards lock protocol + core edits but allow site columns in a trial', () => {
-    authorProtocol(join(dir, 'p.armproto'))
-    dao.createTrialFromProtocol(join(dir, 'p.armproto'), join(dir, 't.armtrial'))
+    authorProtocol(join(dir, 'p.artproto'))
+    dao.createTrialFromProtocol(join(dir, 'p.artproto'), join(dir, 't.arttrial'))
     const trialId = dao.replaceTrialWithPlots(
       { protocolId: 1, plotRows: 3, plotCols: 2, seed: 5, ...SITE },
       []

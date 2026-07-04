@@ -61,7 +61,7 @@ function Welcome(): JSX.Element {
 
   return (
     <div className="welcome">
-      <h1>Open ARM</h1>
+      <h1>ART</h1>
       <p className="muted">
         Open-source Agricultural Research Manager
         <br />
@@ -75,10 +75,10 @@ function Welcome(): JSX.Element {
             file to trial locations.
           </p>
           <div className="row">
-            <button className="primary" onClick={() => openProtocol('Creating protocol', window.arm.protocol.new)}>
+            <button className="primary" onClick={() => openProtocol('Creating protocol', window.art.protocol.new)}>
               New Protocol
             </button>
-            <button onClick={() => openProtocol('Opening protocol', window.arm.protocol.open)}>
+            <button onClick={() => openProtocol('Opening protocol', window.art.protocol.open)}>
               Open Protocol…
             </button>
           </div>
@@ -92,11 +92,11 @@ function Welcome(): JSX.Element {
           <div className="row">
             <button
               className="primary"
-              onClick={() => openTrial('Creating trial', window.arm.trial.newFromProtocol)}
+              onClick={() => openTrial('Creating trial', window.art.trial.newFromProtocol)}
             >
               New Trial from Protocol…
             </button>
-            <button onClick={() => openTrial('Opening trial', window.arm.trial.open)}>
+            <button onClick={() => openTrial('Opening trial', window.art.trial.open)}>
               Open Trial…
             </button>
           </div>
@@ -118,41 +118,41 @@ export default function App(): JSX.Element {
 
   const doNewProtocol = (): void =>
     void run('Creating protocol', async () => {
-      const s = await window.arm.protocol.new()
+      const s = await window.art.protocol.new()
       if (s) applySnapshot(s)
     })
   const doOpen = (): void =>
     void run('Opening file', async () => {
       // Try a trial first, then a protocol (dialogs filter by extension).
-      const s = (await window.arm.trial.open()) ?? (await window.arm.protocol.open())
+      const s = (await window.art.trial.open()) ?? (await window.art.protocol.open())
       if (s) applySnapshot(s)
     })
   const doOpenTrial = (): void =>
     void run('Opening trial', async () => {
-      const s = await window.arm.trial.open()
+      const s = await window.art.trial.open()
       if (s) applySnapshot(s)
     })
   const doNewFromProtocol = (): void =>
     void run('Creating trial', async () => {
-      const s = await window.arm.trial.newFromProtocol()
+      const s = await window.art.trial.newFromProtocol()
       if (s) applySnapshot(s)
     })
   const doNewFromCurrent = (): void =>
     void run('Creating trial', async () => {
-      const s = await window.arm.trial.newFromCurrent()
+      const s = await window.art.trial.newFromCurrent()
       if (s) applySnapshot(s)
     })
   const doClose = (): void =>
     void run('Closing file', async () => {
-      await window.arm.project.close()
+      await window.art.project.close()
       setSnapshot(null)
     })
 
   useEffect(() => {
-    window.arm.env.detectR().then(setREnv)
-    window.arm.project.snapshot().then((s) => s && applySnapshot(s))
+    window.art.env.detectR().then(setREnv)
+    window.art.project.snapshot().then((s) => s && applySnapshot(s))
     // React to native-menu actions.
-    return window.arm.menu.onAction((action) => {
+    return window.art.menu.onAction((action) => {
       switch (action) {
         case 'protocol.new': doNewProtocol(); break
         case 'file.open': doOpen(); break
@@ -173,14 +173,14 @@ export default function App(): JSX.Element {
 
   // Keep the native menu's applicability in sync with the open document.
   useEffect(() => {
-    window.arm.menu.setState({ role: snapshot?.role ?? null, hasDocument: !!snapshot })
+    window.art.menu.setState({ role: snapshot?.role ?? null, hasDocument: !!snapshot })
   }, [snapshot])
 
   return (
     <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
       {busy && <div className="busy-bar" title={busy} />}
       <header className="app-header">
-        <h1>Open ARM</h1>
+        <h1>ART</h1>
         {snapshot && (
           <span className={`role-badge ${role}`}>{role === 'trial' ? 'Trial' : 'Protocol'}</span>
         )}

@@ -27,14 +27,14 @@ export function TrialMapView(): JSX.Element {
       if (selected === plotId) return setSelected(null)
       const a = selected
       setSelected(null)
-      run('Swapping plots', async () => setSnapshot(await window.arm.trial.swapPlots(a, plotId)))
+      run('Swapping plots', async () => setSnapshot(await window.art.trial.swapPlots(a, plotId)))
       return
     }
     const plot = plots.find((p) => p.id === plotId)
     if (!plot) return
     if (plot.excluded) {
       run('Including plot', async () =>
-        setSnapshot(await window.arm.trial.setPlotExcluded(plotId, false, ''))
+        setSnapshot(await window.art.trial.setPlotExcluded(plotId, false, ''))
       )
     } else {
       // Collect a reason via an in-app modal (Electron doesn't support window.prompt).
@@ -48,7 +48,7 @@ export function TrialMapView(): JSX.Element {
     const { plotId } = excluding
     setExcluding(null)
     run('Excluding plot', async () =>
-      setSnapshot(await window.arm.trial.setPlotExcluded(plotId, true, reason.trim()))
+      setSnapshot(await window.art.trial.setPlotExcluded(plotId, true, reason.trim()))
     )
   }
 
@@ -59,7 +59,7 @@ export function TrialMapView(): JSX.Element {
     )
     if (!ok) return
     run('Locking layout', async () => {
-      const next = await window.arm.trial.lockLayout()
+      const next = await window.art.trial.lockLayout()
       setSnapshot(next)
       setView('assessments')
     })

@@ -27,8 +27,8 @@ import {
   assertLayoutUnlocked
 } from '../db/guards.js'
 
-const PROTO_FILTER = { name: 'Open ARM Protocol', extensions: ['armproto'] }
-const TRIAL_FILTER = { name: 'Open ARM Trial', extensions: ['armtrial'] }
+const PROTO_FILTER = { name: 'ART Protocol', extensions: ['artproto'] }
+const TRIAL_FILTER = { name: 'ART Trial', extensions: ['arttrial'] }
 import { detectR } from '../r/detect.js'
 import { setRscriptPath } from '../r/run.js'
 import { randomize, runAov, ENGINE_VERSION } from '../r/service.js'
@@ -60,7 +60,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle(IPC.protocolNew, async (): Promise<ProjectSnapshot | null> => {
     const res = await dialog.showSaveDialog(getWindow()!, {
       title: 'New Protocol',
-      defaultPath: 'protocol.armproto',
+      defaultPath: 'protocol.artproto',
       filters: [PROTO_FILTER]
     })
     if (res.canceled || !res.filePath) return null
@@ -145,7 +145,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     if (srcRes.canceled || srcRes.filePaths.length === 0) return null
     const dstRes = await dialog.showSaveDialog(win, {
       title: 'Save New Trial',
-      defaultPath: 'trial.armtrial',
+      defaultPath: 'trial.arttrial',
       filters: [TRIAL_FILTER]
     })
     if (dstRes.canceled || !dstRes.filePath) return null
@@ -167,7 +167,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     if (!src) throw new Error('No protocol is open.')
     const dstRes = await dialog.showSaveDialog(getWindow()!, {
       title: 'Save New Trial',
-      defaultPath: 'trial.armtrial',
+      defaultPath: 'trial.arttrial',
       filters: [TRIAL_FILTER]
     })
     if (dstRes.canceled || !dstRes.filePath) return null
@@ -420,7 +420,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       displayHeaderFooter: true,
       margins: { top: 0.7, bottom: 0.7, left: 0.6, right: 0.6 }, // inches; non-zero so templates show
       headerTemplate: `${margin}${esc(title)}</div>`,
-      footerTemplate: `${margin.replace('color:#666;', 'color:#666; display:flex; justify-content:space-between;')}<span>Open ARM</span><span>Page <span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`
+      footerTemplate: `${margin.replace('color:#666;', 'color:#666; display:flex; justify-content:space-between;')}<span>ART</span><span>Page <span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`
     })
     await writeFile(res.filePath, data)
     shell.openPath(res.filePath)

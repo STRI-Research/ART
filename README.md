@@ -1,8 +1,7 @@
-# Open ARM
+# ART
 
-An open-source **Agricultural Research Manager** — a cross-platform desktop app for planning,
-randomizing, collecting, and analyzing agricultural field trials. It is a free reimagining of the
-core workflow of commercial ARM software:
+An open-source **Agricultural Research Tool** — a cross-platform desktop app for planning,
+randomizing, collecting, and analyzing agricultural field trials, covering the full workflow:
 
 **Protocol → randomized Trial → Trial Map → Assessment data → ANOVA → Report.**
 
@@ -14,7 +13,7 @@ statistics engine (via the [`agricolae`](https://cran.r-project.org/package=agri
 - **Protocol editor** — trial metadata, treatment list, application timings.
 - **Randomized trial generation** — Randomized Complete Block (RCB) and Completely Randomized
   (CRD) designs, generated in R with `agricolae::design.rcbd` / `design.crd`.
-- **Trial map** — visual plot grid with ARM-style "hot edit" (click two plots to swap treatments).
+- **Trial map** — visual plot grid with "hot edit" (click two plots to swap treatments).
 - **Assessment data entry** — spreadsheet-style grid (rows = plots, columns = assessments) with
   paste-from-clipboard support.
 - **Statistics** — one-/two-way ANOVA plus mean-comparison tests (Fisher's LSD, Tukey's HSD,
@@ -33,7 +32,7 @@ statistics engine (via the [`agricolae`](https://cran.r-project.org/package=agri
   ```
 
   `Rscript` must be on your `PATH`, or set a custom path in the app's setup banner (or the
-  `OPENARM_RSCRIPT` environment variable). The app runs without R, but trial generation and
+  `ART_RSCRIPT` environment variable). The app runs without R, but trial generation and
   analysis are disabled until R is available.
 
 ## Development
@@ -75,14 +74,14 @@ src/
     db/      better-sqlite3 connection, schema.sql, typed DAO
     r/       R sidecar: detect.ts, run.ts (JSON stdin/stdout), randomize.R, aov.R, service.ts
     ipc/     typed IPC handlers
-  preload/   contextBridge API exposed as window.arm (contextIsolation on)
+  preload/   contextBridge API exposed as window.art (contextIsolation on)
   renderer/  React UI (features: protocol, trialmap, assessments, stats, report)
   shared/    domain types + zod schemas + IPC channel names (single source of truth)
 ```
 
-- The **renderer** has no Node access; every privileged action goes through a typed `window.arm.*`
+- The **renderer** has no Node access; every privileged action goes through a typed `window.art.*`
   IPC call to the main process.
-- A **project** is a single `.armdb` SQLite file holding the protocol, trial, plots, assessment
+- A **project** is a single `.artdb` SQLite file holding the protocol, trial, plots, assessment
   data, and cached analysis results.
 - The **R sidecar** is a plain JSON-in / JSON-out child process: the main process writes a request
   on stdin and reads `{ ok, result | error }` on stdout, so the R scripts stay pure and testable.
@@ -96,7 +95,7 @@ See `src/main/db/schema.sql`.
 ## Roadmap (out of scope for the MVP)
 
 Summary-across-trials (multi-trial), a tablet/field data collector, factorial & split-plot designs,
-EPPO code libraries, ARM file-format import, and cloud sync. The schema is intentionally
+EPPO code libraries, import from third-party trial file formats, and cloud sync. The schema is intentionally
 extensible to accommodate these.
 
 ## License

@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# ANOVA + mean-comparison sidecar for Open ARM.
+# ANOVA + mean-comparison sidecar for ART.
 # Reads JSON { design, test, alpha, data:[{treatment,rep,value}] } on stdin.
 # Writes JSON { ok, result } where result matches the AovResult shape in
 # src/shared/types.ts. Degenerate designs (too few treatments, no residual

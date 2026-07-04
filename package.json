@@ -1,8 +1,8 @@
 {
-  "name": "open-arm",
+  "name": "art",
   "version": "0.1.0",
-  "description": "Open-source Agricultural Research Manager — plan, randomize, collect, and analyze field trials",
-  "author": "Open ARM contributors",
+  "description": "Open-source Agricultural Research Tool — plan, randomize, collect, and analyze field trials",
+  "author": "ART contributors",
   "license": "MIT",
   "main": "./out/main/index.js",
   "type": "module",

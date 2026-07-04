@@ -1,8 +1,8 @@
-import type { ArmApi } from './index.js'
+import type { ArtApi } from './index.js'
 
 declare global {
   interface Window {
-    arm: ArmApi
+    art: ArtApi
   }
 }
 

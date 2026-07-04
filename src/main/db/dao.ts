@@ -290,7 +290,7 @@ export function setPlotExcluded(
   )
 }
 
-/** Swap the treatment assignment of two plots (ARM-style hot edit). */
+/** Swap the treatment assignment of two plots ("hot edit"). */
 export function swapPlotTreatments(plotIdA: number, plotIdB: number, db: Database.Database = getDb()): void {
   const tx = db.transaction(() => {
     const a = db.prepare('SELECT treatment_id FROM plot WHERE id = ?').get(plotIdA) as

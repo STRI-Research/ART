@@ -23,7 +23,7 @@ export function REnvBanner(): JSX.Element | null {
             onChange={(e) => setPath(e.target.value)}
           />
         </div>
-        <button onClick={async () => setREnv(await window.arm.env.setRscriptPath(path))}>
+        <button onClick={async () => setREnv(await window.art.env.setRscriptPath(path))}>
           Re-check
         </button>
       </div>

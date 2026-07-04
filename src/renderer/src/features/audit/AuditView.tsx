@@ -9,7 +9,7 @@ export function AuditView(): JSX.Element {
 
   const load = (): void => {
     run('Loading audit trail', async () => {
-      setEntries(await window.arm.audit.list())
+      setEntries(await window.art.audit.list())
     })
   }
 

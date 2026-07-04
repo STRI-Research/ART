@@ -88,6 +88,6 @@ const api = {
   }
 }
 
-export type ArmApi = typeof api
+export type ArtApi = typeof api
 
-contextBridge.exposeInMainWorld('arm', api)
+contextBridge.exposeInMainWorld('art', api)

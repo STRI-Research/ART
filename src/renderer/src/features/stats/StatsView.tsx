@@ -33,7 +33,7 @@ export function StatsView(): JSX.Element {
   const runAnalysis = (): void => {
     if (!headerId) return
     run('Running ANOVA', async () => {
-      const result = await window.arm.stats.runAov(headerId, {
+      const result = await window.art.stats.runAov(headerId, {
         design: snapshot!.protocol.design,
         test,
         alpha,

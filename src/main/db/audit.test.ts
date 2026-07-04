@@ -9,8 +9,8 @@ import { recordAudit, listAudit } from './audit.js'
 let dir: string
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'openarm-audit-'))
-  openProject(join(dir, 'test.armproto'), { role: 'protocol', create: true })
+  dir = mkdtempSync(join(tmpdir(), 'art-audit-'))
+  openProject(join(dir, 'test.artproto'), { role: 'protocol', create: true })
 })
 
 afterEach(() => {

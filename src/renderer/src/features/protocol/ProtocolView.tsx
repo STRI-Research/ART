@@ -8,7 +8,7 @@ export function ProtocolView(): JSX.Element {
 
   const createTrial = (): void =>
     void run('Creating trial', async () => {
-      const s = await window.arm.trial.newFromCurrent()
+      const s = await window.art.trial.newFromCurrent()
       if (s) {
         setSnapshot(s)
         setView(s.trial ? 'trialmap' : 'site')
@@ -26,7 +26,7 @@ export function ProtocolView(): JSX.Element {
   const saveProtocol = (next: Protocol = protocol): void => {
     if (readOnly) return
     run('Saving protocol', async () => {
-      const saved = await window.arm.protocol.save(next)
+      const saved = await window.art.protocol.save(next)
       setSnapshot({ ...useStore.getState().snapshot!, protocol: saved })
     })
   }
@@ -57,7 +57,7 @@ export function ProtocolView(): JSX.Element {
     if (readOnly) return
     setTreatments(next)
     run('Saving treatments', async () => {
-      const saved = await window.arm.treatments.save(next)
+      const saved = await window.art.treatments.save(next)
       setSnapshot({ ...useStore.getState().snapshot!, treatments: saved })
     })
   }
@@ -274,7 +274,7 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
 
   const save = (next: AssessmentDef[]): void => {
     run('Saving assessments', async () => {
-      const saved = await window.arm.assessments.saveDefs(next)
+      const saved = await window.art.assessments.saveDefs(next)
       setSnapshot({ ...useStore.getState().snapshot!, assessmentDefs: saved })
     })
   }

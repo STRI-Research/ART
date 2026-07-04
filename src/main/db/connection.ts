@@ -6,7 +6,7 @@ import schemaSql from './schema.sql?raw'
 const SCHEMA_VERSION = '2'
 
 /**
- * Opens (or creates) an Open ARM SQLite file and ensures the schema is applied.
+ * Opens (or creates) an ART SQLite file and ensures the schema is applied.
  * A file is either a protocol (authored template) or a trial (local instance);
  * meta.role records which. A single Database handle is held per process; opening
  * a new file closes the previous one.
