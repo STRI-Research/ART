@@ -7,3 +7,6 @@ dist-app/
 # Local test project files
 *.artdb
 !src/**/*.artdb
+
+# Local CodeGraph index (per-developer, not shared)
+.codegraph/

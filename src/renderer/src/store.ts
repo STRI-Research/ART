@@ -1,7 +1,15 @@
 import { create } from 'zustand'
 import type { ProjectSnapshot, REnvStatus, AovResult } from '@shared/types'
 
-export type ViewId = 'protocol' | 'site' | 'trialmap' | 'assessments' | 'stats' | 'report' | 'audit'
+export type ViewId =
+  | 'protocol'
+  | 'site'
+  | 'trialmap'
+  | 'assessments'
+  | 'dataentry'
+  | 'stats'
+  | 'report'
+  | 'audit'
 
 interface AppState {
   snapshot: ProjectSnapshot | null

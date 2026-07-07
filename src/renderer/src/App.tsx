@@ -4,6 +4,7 @@ import { ProtocolView } from './features/protocol/ProtocolView'
 import { SiteView } from './features/site/SiteView'
 import { TrialMapView } from './features/trialmap/TrialMapView'
 import { AssessmentsView } from './features/assessments/AssessmentsView'
+import { DataEntryView } from './features/assessments/DataEntryView'
 import { StatsView } from './features/stats/StatsView'
 import { ReportView } from './features/report/ReportView'
 import { AuditView } from './features/audit/AuditView'
@@ -30,6 +31,7 @@ const NAV: Record<Role, NavItem[]> = {
     { id: 'site', label: 'Site & Randomization' },
     { id: 'trialmap', label: 'Trial Map', needsTrial: true },
     { id: 'assessments', label: 'Assessments', needsTrial: true, needsLock: true },
+    { id: 'dataentry', label: 'Data Entry', needsTrial: true, needsLock: true },
     { id: 'stats', label: 'Statistics', needsTrial: true, needsLock: true },
     { id: 'report', label: 'Report', needsTrial: true, needsLock: true },
     { id: 'audit', label: 'Audit' }
@@ -231,6 +233,7 @@ export default function App(): JSX.Element {
             {view === 'site' && <SiteView />}
             {view === 'trialmap' && <TrialMapView />}
             {view === 'assessments' && <AssessmentsView />}
+            {view === 'dataentry' && <DataEntryView />}
             {view === 'stats' && <StatsView />}
             {view === 'report' && <ReportView />}
             {view === 'audit' && <AuditView />}

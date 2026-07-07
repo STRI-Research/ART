@@ -16,8 +16,9 @@ statistics engine (via the [`agricolae`](https://cran.r-project.org/package=agri
   `agricolae::design.rcbd` / `design.crd` / `design.alpha`. Alpha designs split each replicate
   into incomplete blocks of a chosen size k (the treatment count must be divisible by k).
 - **Trial map** — visual plot grid with "hot edit" (click two plots to swap treatments).
-- **Assessment data entry** — spreadsheet-style grid (rows = plots, columns = assessments) with
-  paste-from-clipboard support.
+- **Assessment setup & data entry** — define assessment columns (rating type, timing, subsamples)
+  on the Assessments tab, then record measurements on a dedicated Data Entry tab: a
+  spreadsheet-style grid (rows = plots, columns = assessments) with paste-from-clipboard support.
 - **Statistics** — one-/two-way ANOVA plus mean-comparison tests (Fisher's LSD, Tukey's HSD,
   Duncan's MRT, Student-Newman-Keuls) at α = 0.01 / 0.05 / 0.10, with mean-separation letters,
   CV, grand mean, and critical values. Alpha designs use a block-adjusted analysis
