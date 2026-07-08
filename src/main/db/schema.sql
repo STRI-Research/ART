@@ -31,6 +31,18 @@ CREATE TABLE IF NOT EXISTS protocol (
   plot_length      REAL NOT NULL DEFAULT 0
 );
 
+-- Snapshot of the coded terms this document references (crop, rating types, units, …).
+-- Populated as coded fields are saved and copied into a trial by createTrialFromProtocol, so
+-- the author's vocabulary (values + labels) travels to the operator on any machine. The author's
+-- accumulating *personal* library lives outside the project file (app userData).
+CREATE TABLE IF NOT EXISTS library_term (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  category TEXT NOT NULL,
+  value    TEXT NOT NULL,
+  label    TEXT NOT NULL DEFAULT '',
+  UNIQUE (category, value)
+);
+
 CREATE TABLE IF NOT EXISTS treatment (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   number    INTEGER NOT NULL,

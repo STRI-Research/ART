@@ -278,6 +278,42 @@ table.data td.num {
   color: var(--muted);
 }
 
+/* Combobox (free-type picklist) */
+.combobox-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 2px 0 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+.combobox-menu li {
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.combobox-menu li.active {
+  background: var(--bg);
+}
+.combobox-code {
+  font-weight: 600;
+}
+.combobox-label {
+  color: var(--muted);
+}
+
 /* Trial map grid */
 .trialmap {
   display: grid;

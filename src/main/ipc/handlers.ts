@@ -1,5 +1,5 @@
 import { ipcMain, dialog, shell, BrowserWindow } from 'electron'
-import { writeFile } from 'fs/promises'
+import { writeFile, readFile } from 'fs/promises'
 import { IPC } from '@shared/ipc.js'
 import {
   Protocol,
@@ -16,6 +16,8 @@ import {
 } from '@shared/types.js'
 import { z } from 'zod'
 import { validateDesign } from '@shared/design.js'
+import { LibraryCategory, type LibraryExport } from '@shared/types.js'
+import * as library from '../library/store.js'
 import { openProject, closeProject, getCurrentPath } from '../db/connection.js'
 import { setMenuEnabled } from '../menu.js'
 import * as dao from '../db/dao.js'
@@ -37,6 +39,25 @@ import { randomize, runAov, ENGINE_VERSION } from '../r/service.js'
 /** Wrap a handler so thrown errors become a rejected invoke (surfaced in UI). */
 function handle<T>(channel: string, fn: (...args: any[]) => Promise<T> | T): void {
   ipcMain.handle(channel, async (_e, ...args) => fn(...args))
+}
+
+/**
+ * Sync the library after a coded field changed: record newly-referenced terms into the author's
+ * personal library (once per document, scoped to the current crop) and rebuild the document's
+ * travelling snapshot from all its current coded fields.
+ */
+function syncLibrary(): void {
+  if (!getCurrentPath()) return
+  const before = dao.listLibraryTerms()
+  const refs = dao.collectDocumentTerms()
+  const crop = dao.getProtocol().crop
+  const added = refs.filter((r) => !before.some((b) => b.category === r.category && b.value === r.value))
+  if (library.isOpen()) {
+    library.recordUsage(added, crop)
+    dao.replaceLibraryTerms(refs.map((r) => ({ ...r, label: library.labelFor(r.category, r.value) })))
+  } else {
+    dao.replaceLibraryTerms(refs.map((r) => ({ ...r, label: '' })))
+  }
 }
 
 // The design/replicates/plot-dimensions come from the (locked) protocol; a trial
@@ -96,6 +117,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     if (changed.length) {
       recordAudit('protocol.edit', 'protocol', `Edited protocol: ${changed.join(', ')}`, { changes })
     }
+    syncLibrary()
     return dao.getProtocol()
   })
 
@@ -108,6 +130,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       before,
       after: dao.listTreatments()
     })
+    syncLibrary()
     return dao.listTreatments()
   })
 
@@ -120,6 +143,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       before,
       after: dao.listApplications()
     })
+    syncLibrary()
     return dao.listApplications()
   })
 
@@ -132,6 +156,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       before,
       after: dao.listAssessmentDefs()
     })
+    syncLibrary()
     return dao.listAssessmentDefs()
   })
 
@@ -328,6 +353,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       `Added site assessment "${header.description || header.ratingType || 'assessment'}"`,
       { header }
     )
+    syncLibrary()
     const trial = dao.getTrial()
     return trial ? dao.listAssessmentHeaders(trial.id!) : []
   })
@@ -344,6 +370,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       before ? `Edited assessment "${label}"` : `Added assessment "${label}"`,
       { before, after: header }
     )
+    syncLibrary()
     const trial = dao.getTrial()
     return trial ? dao.listAssessmentHeaders(trial.id!) : []
   })
@@ -359,6 +386,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       `Deleted assessment "${before?.description || before?.ratingType || headerId}"`,
       { before }
     )
+    syncLibrary()
     const trial = dao.getTrial()
     return trial ? dao.listAssessmentHeaders(trial.id!) : []
   })
@@ -437,6 +465,49 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       .parse(input)
     setMenuEnabled('trial-from-current', role === 'protocol')
     return true
+  })
+
+  // --- Library (personal curated vocabulary) ---
+  handle(IPC.librarySuggest, (input: unknown) => {
+    const { category, query, crop } = z
+      .object({ category: LibraryCategory, query: z.string().default(''), crop: z.string().default('') })
+      .parse(input)
+    return library.isOpen() ? library.suggest(category, query, crop) : []
+  })
+  handle(IPC.libraryList, () => (library.isOpen() ? library.list() : []))
+  handle(IPC.libraryUpdateLabel, (input: unknown) => {
+    const { id, label } = z.object({ id: z.number().int(), label: z.string() }).parse(input)
+    library.updateLabel(id, label)
+    return library.list()
+  })
+  handle(IPC.libraryRename, (input: unknown) => {
+    const { id, value } = z.object({ id: z.number().int(), value: z.string().min(1) }).parse(input)
+    library.rename(id, value)
+    return library.list()
+  })
+  handle(IPC.libraryRemove, (id: unknown) => {
+    library.remove(z.number().int().parse(id))
+    return library.list()
+  })
+  handle(IPC.libraryExport, async () => {
+    const res = await dialog.showSaveDialog(getWindow()!, {
+      title: 'Export Library',
+      defaultPath: 'library.artlib',
+      filters: [{ name: 'ART Library', extensions: ['artlib'] }]
+    })
+    if (res.canceled || !res.filePath) return null
+    await writeFile(res.filePath, JSON.stringify(library.exportLibrary(), null, 2))
+    return res.filePath
+  })
+  handle(IPC.libraryImport, async () => {
+    const res = await dialog.showOpenDialog(getWindow()!, {
+      title: 'Import Library',
+      properties: ['openFile'],
+      filters: [{ name: 'ART Library', extensions: ['artlib', 'json'] }]
+    })
+    if (res.canceled || res.filePaths.length === 0) return null
+    const payload = JSON.parse(await readFile(res.filePaths[0], 'utf8')) as LibraryExport
+    return library.importLibrary(payload)
   })
 
   // --- Audit ---

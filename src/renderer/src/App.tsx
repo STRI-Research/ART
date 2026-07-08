@@ -7,6 +7,7 @@ import { AssessmentsView } from './features/assessments/AssessmentsView'
 import { DataEntryView } from './features/assessments/DataEntryView'
 import { StatsView } from './features/stats/StatsView'
 import { ReportView } from './features/report/ReportView'
+import { LibraryView } from './features/library/LibraryView'
 import { AuditView } from './features/audit/AuditView'
 import { REnvBanner } from './components/REnvBanner'
 import { validateDesign } from '@shared/design'
@@ -25,6 +26,7 @@ interface NavItem {
 const NAV: Record<Role, NavItem[]> = {
   protocol: [
     { id: 'protocol', label: 'Protocol & Assessments' },
+    { id: 'library', label: 'Library' },
     { id: 'audit', label: 'Audit' }
   ],
   trial: [
@@ -35,6 +37,7 @@ const NAV: Record<Role, NavItem[]> = {
     { id: 'dataentry', label: 'Data Entry', needsTrial: true, needsLock: true },
     { id: 'stats', label: 'Statistics', needsTrial: true, needsLock: true },
     { id: 'report', label: 'Report', needsTrial: true, needsLock: true },
+    { id: 'library', label: 'Library' },
     { id: 'audit', label: 'Audit' }
   ]
 }
@@ -250,6 +253,7 @@ export default function App(): JSX.Element {
             {view === 'dataentry' && <DataEntryView />}
             {view === 'stats' && <StatsView />}
             {view === 'report' && <ReportView />}
+            {view === 'library' && <LibraryView />}
             {view === 'audit' && <AuditView />}
           </>
         )}
