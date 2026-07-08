@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store'
+import { Combobox } from '../../components/Combobox'
 import type { AssessmentHeader } from '@shared/types'
 
 export function AssessmentsView(): JSX.Element {
@@ -140,34 +141,38 @@ function HeaderManager({
       <div className="row">
         <div style={{ width: 160 }}>
           <label>Rating type</label>
-          <input
-            placeholder="e.g. CONTRO, PHYGEN"
+          <Combobox
+            category="rating_type"
+            crop={snapshot!.protocol.crop}
             value={draft.ratingType}
-            onChange={(e) => setDraft({ ...draft, ratingType: e.target.value })}
+            onChange={(v) => setDraft({ ...draft, ratingType: v })}
           />
         </div>
         <div style={{ width: 160 }}>
           <label>Part rated</label>
-          <input
-            placeholder="e.g. PLANT, LEAF"
+          <Combobox
+            category="part_rated"
+            crop={snapshot!.protocol.crop}
             value={draft.partRated}
-            onChange={(e) => setDraft({ ...draft, partRated: e.target.value })}
+            onChange={(v) => setDraft({ ...draft, partRated: v })}
           />
         </div>
         <div style={{ width: 110 }}>
           <label>Unit</label>
-          <input
-            placeholder="%, count"
+          <Combobox
+            category="unit"
+            crop={snapshot!.protocol.crop}
             value={draft.ratingUnit}
-            onChange={(e) => setDraft({ ...draft, ratingUnit: e.target.value })}
+            onChange={(v) => setDraft({ ...draft, ratingUnit: v })}
           />
         </div>
         <div style={{ width: 130 }}>
           <label>Timing</label>
-          <input
-            placeholder="e.g. 14 DA-A"
+          <Combobox
+            category="timing"
+            crop={snapshot!.protocol.crop}
             value={draft.timing}
-            onChange={(e) => setDraft({ ...draft, timing: e.target.value })}
+            onChange={(v) => setDraft({ ...draft, timing: v })}
           />
         </div>
         <div style={{ width: 90 }}>

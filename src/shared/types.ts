@@ -31,6 +31,73 @@ export const AlphaLevel = z.union([z.literal(0.01), z.literal(0.05), z.literal(0
 export type AlphaLevel = z.infer<typeof AlphaLevel>
 
 // ---------------------------------------------------------------------------
+// Library (user-curated controlled vocabularies for coded fields)
+// ---------------------------------------------------------------------------
+/** Which coded field a library value feeds. Not a taxonomy — just the source field. */
+export const LibraryCategory = z.enum([
+  'crop',
+  'target',
+  'rating_type',
+  'part_rated',
+  'unit',
+  'growth_stage',
+  'treatment_type',
+  'timing'
+])
+export type LibraryCategory = z.infer<typeof LibraryCategory>
+
+/** Vocabularies that apply to every crop (no per-crop scoping/ranking). All others vary by crop. */
+export const GENERAL_CATEGORIES: ReadonlySet<LibraryCategory> = new Set<LibraryCategory>(['crop', 'unit'])
+
+/** Whether a category's terms are scoped/ranked by crop (e.g. rating types), vs. general (crop, unit). */
+export function isCropScoped(category: LibraryCategory): boolean {
+  return !GENERAL_CATEGORIES.has(category)
+}
+
+export const LIBRARY_CATEGORY_LABELS: Record<LibraryCategory, string> = {
+  crop: 'Crops',
+  target: 'Target organisms',
+  rating_type: 'Rating types',
+  part_rated: 'Parts rated',
+  unit: 'Units',
+  growth_stage: 'Growth stages',
+  treatment_type: 'Treatment types',
+  timing: 'Timings'
+}
+
+/** A term embedded in a project (the travelling snapshot) or referenced generally. */
+export const LibraryTerm = z.object({
+  id: z.number().int().optional(),
+  category: LibraryCategory,
+  value: z.string().min(1),
+  label: z.string().default('')
+})
+export type LibraryTerm = z.infer<typeof LibraryTerm>
+
+/** A ranked suggestion returned to a combobox. */
+export interface SuggestHit {
+  value: string
+  label: string
+}
+
+/** A term in the personal library, with usage + the crops it's been used on (implicit scope). */
+export interface PersonalTerm {
+  id: number
+  category: LibraryCategory
+  value: string
+  label: string
+  useCount: number
+  crops: string[]
+}
+
+/** Portable `.artlib` payload for import/export of a personal library. */
+export interface LibraryExport {
+  version: number
+  exportedAt: string
+  terms: { category: LibraryCategory; value: string; label: string; crops: string[] }[]
+}
+
+// ---------------------------------------------------------------------------
 // Protocol
 // ---------------------------------------------------------------------------
 export const Protocol = z.object({
@@ -260,6 +327,8 @@ export interface ProjectSnapshot {
   plots: Plot[]
   assessmentHeaders: AssessmentHeader[]
   assessmentValues: AssessmentValue[]
+  /** Snapshot of the coded terms this document references (travels into trials). */
+  libraryTerms: LibraryTerm[]
 }
 
 // ---------------------------------------------------------------------------

@@ -27,6 +27,15 @@ export const IPC = {
   assessmentHeaderDelete: 'assessment:header:delete',
   assessmentValueSet: 'assessment:value:set',
 
+  // Library (personal curated vocabulary)
+  librarySuggest: 'library:suggest',
+  libraryList: 'library:list',
+  libraryUpdateLabel: 'library:updateLabel',
+  libraryRename: 'library:rename',
+  libraryRemove: 'library:remove',
+  libraryExport: 'library:export',
+  libraryImport: 'library:import',
+
   // Stats
   statsRunAov: 'stats:runAov',
 

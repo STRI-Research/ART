@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import { registerIpc } from './ipc/handlers.js'
 import { buildMenu } from './menu.js'
 import { closeProject } from './db/connection.js'
+import * as library from './library/store.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -43,6 +44,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  library.open(join(app.getPath('userData'), 'library.sqlite'))
   registerIpc(() => mainWindow)
   createWindow()
   if (mainWindow) Menu.setApplicationMenu(buildMenu(mainWindow))
@@ -57,4 +59,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-app.on('before-quit', () => closeProject())
+app.on('before-quit', () => {
+  closeProject()
+  library.close()
+})

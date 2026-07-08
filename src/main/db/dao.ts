@@ -9,8 +9,18 @@ import type {
   Plot,
   AssessmentHeader,
   AssessmentValue,
+  LibraryTerm,
   ProjectSnapshot
 } from '@shared/types.js'
+import {
+  extractProtocol,
+  extractTreatments,
+  extractApplications,
+  extractAssessmentDefs,
+  extractAssessmentHeaders,
+  dedupeTerms,
+  type TermRef
+} from '../library/extract.js'
 
 /**
  * Data-access layer. All row mapping between snake_case columns and camelCase
@@ -487,11 +497,13 @@ export function createTrialFromProtocol(sourcePath: string, destPath: string): v
   let treatments: Treatment[]
   let applications: Application[]
   let defs: AssessmentDef[]
+  let library: LibraryTerm[]
   try {
     protocol = getProtocol(src)
     treatments = listTreatments(src)
     applications = listApplications(src)
     defs = listAssessmentDefs(src)
+    library = listLibraryTerms(src)
   } finally {
     src.close()
   }
@@ -501,6 +513,8 @@ export function createTrialFromProtocol(sourcePath: string, destPath: string): v
   replaceTreatments(treatments)
   replaceApplications(applications)
   replaceAssessmentDefs(defs)
+  // The author's vocabulary snapshot travels so the operator sees the same terms/labels.
+  replaceLibraryTerms(library)
 }
 
 /** Materialize the protocol's core assessment defs as locked headers on a trial. */
@@ -527,6 +541,44 @@ export function materializeCoreHeaders(trialId: number, db: Database.Database = 
   })
 }
 
+// --- Library snapshot (per-project; travels into trials) --------------------
+export function listLibraryTerms(db: Database.Database = getDb()): LibraryTerm[] {
+  const rows = db
+    .prepare(`SELECT * FROM library_term ORDER BY category, value`)
+    .all() as Record<string, unknown>[]
+  return rows.map((r) => ({
+    id: r.id as number,
+    category: r.category as LibraryTerm['category'],
+    value: r.value as string,
+    label: r.label as string
+  }))
+}
+
+/** Replace the whole embedded snapshot in one transaction. */
+export function replaceLibraryTerms(terms: LibraryTerm[], db: Database.Database = getDb()): void {
+  const tx = db.transaction((items: LibraryTerm[]) => {
+    db.prepare('DELETE FROM library_term').run()
+    const ins = db.prepare(
+      `INSERT OR IGNORE INTO library_term (category, value, label) VALUES (@category, @value, @label)`
+    )
+    for (const t of items) ins.run({ category: t.category, value: t.value, label: t.label ?? '' })
+  })
+  tx(terms)
+}
+
+/** Every coded term the current document references (deduped), for rebuilding the snapshot. */
+export function collectDocumentTerms(db: Database.Database = getDb()): TermRef[] {
+  const trial = getTrial(db)
+  const refs: TermRef[] = [
+    ...extractProtocol(getProtocol(db)),
+    ...extractTreatments(listTreatments(db)),
+    ...extractApplications(listApplications(db)),
+    ...extractAssessmentDefs(listAssessmentDefs(db)),
+    ...(trial ? extractAssessmentHeaders(listAssessmentHeaders(trial.id!, db)) : [])
+  ]
+  return dedupeTerms(refs)
+}
+
 // --- Full snapshot ----------------------------------------------------------
 export function snapshot(db: Database.Database = getDb()): ProjectSnapshot {
   const trial = getTrial(db)
@@ -540,6 +592,7 @@ export function snapshot(db: Database.Database = getDb()): ProjectSnapshot {
     trial,
     plots: trial ? listPlots(trial.id!, db) : [],
     assessmentHeaders: trial ? listAssessmentHeaders(trial.id!, db) : [],
-    assessmentValues: trial ? listAssessmentValues(trial.id!, db) : []
+    assessmentValues: trial ? listAssessmentValues(trial.id!, db) : [],
+    libraryTerms: listLibraryTerms(db)
   }
 }

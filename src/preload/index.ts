@@ -10,6 +10,9 @@ import type {
   AovRequest,
   AovResult,
   AuditEntry,
+  LibraryCategory,
+  PersonalTerm,
+  SuggestHit,
   ProjectSnapshot,
   REnvStatus,
   SiteMetadata
@@ -58,6 +61,19 @@ const api = {
       ipcRenderer.invoke(IPC.assessmentHeaderDelete, id),
     setValue: (v: AssessmentValue): Promise<boolean> =>
       ipcRenderer.invoke(IPC.assessmentValueSet, v)
+  },
+  library: {
+    suggest: (category: LibraryCategory, query: string, crop: string): Promise<SuggestHit[]> =>
+      ipcRenderer.invoke(IPC.librarySuggest, { category, query, crop }),
+    list: (): Promise<PersonalTerm[]> => ipcRenderer.invoke(IPC.libraryList),
+    updateLabel: (id: number, label: string): Promise<PersonalTerm[]> =>
+      ipcRenderer.invoke(IPC.libraryUpdateLabel, { id, label }),
+    rename: (id: number, value: string): Promise<PersonalTerm[]> =>
+      ipcRenderer.invoke(IPC.libraryRename, { id, value }),
+    remove: (id: number): Promise<PersonalTerm[]> => ipcRenderer.invoke(IPC.libraryRemove, id),
+    exportToFile: (): Promise<string | null> => ipcRenderer.invoke(IPC.libraryExport),
+    importFromFile: (): Promise<{ added: number; updated: number } | null> =>
+      ipcRenderer.invoke(IPC.libraryImport)
   },
   stats: {
     runAov: (headerId: number, req: AovRequest): Promise<AovResult> =>

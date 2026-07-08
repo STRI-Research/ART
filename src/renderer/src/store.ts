@@ -9,6 +9,7 @@ export type ViewId =
   | 'dataentry'
   | 'stats'
   | 'report'
+  | 'library'
   | 'audit'
 
 interface AppState {

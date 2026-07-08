@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useStore } from '../../store'
+import { Combobox } from '../../components/Combobox'
 import { validateDesign } from '@shared/design'
-import type { Protocol, Treatment, AssessmentDef, DesignType } from '@shared/types'
+import type { Protocol, Treatment, AssessmentDef, DesignType, LibraryCategory } from '@shared/types'
 
 export function ProtocolView(): JSX.Element {
   const { snapshot, setSnapshot, setView, run } = useStore()
@@ -62,6 +63,24 @@ export function ProtocolView(): JSX.Element {
     </div>
   )
 
+  // A protocol field backed by a library vocabulary (crop-aware suggestions + free type).
+  const comboField = (key: keyof Protocol, label: string, category: LibraryCategory): JSX.Element => (
+    <div>
+      <label>{label}</label>
+      <Combobox
+        category={category}
+        crop={category === 'crop' ? '' : protocol.crop}
+        disabled={readOnly}
+        value={protocol[key] as string}
+        onChange={(v) => {
+          const next = { ...protocol, [key]: v }
+          setProtocol(next)
+          saveProtocol(next)
+        }}
+      />
+    </div>
+  )
+
   const saveTreatments = (next: Treatment[]): void => {
     if (readOnly) return
     setTreatments(next)
@@ -115,8 +134,8 @@ export function ProtocolView(): JSX.Element {
         <h2>Protocol</h2>
         <div className="field-grid">
           {field('title', 'Trial title')}
-          {field('crop', 'Crop')}
-          {field('targetPest', 'Target pest / disease')}
+          {comboField('crop', 'Crop', 'crop')}
+          {comboField('targetPest', 'Target pest / disease', 'target')}
           {field('investigator', 'Investigator')}
           {field('season', 'Season / year')}
           {field('objective', 'Objective')}
@@ -258,11 +277,14 @@ export function ProtocolView(): JSX.Element {
                   />
                 </td>
                 <td>
-                  <input
+                  <Combobox
+                    category="unit"
+                    crop={protocol.crop}
                     disabled={readOnly}
                     value={t.rateUnit}
-                    onChange={(e) => updateTreatment(i, { rateUnit: e.target.value })}
-                    onBlur={() => saveTreatments(treatments)}
+                    onChange={(v) =>
+                      saveTreatments(treatments.map((x, idx) => (idx === i ? { ...x, rateUnit: v } : x)))
+                    }
                   />
                 </td>
                 {!readOnly && (
@@ -295,6 +317,7 @@ export function ProtocolView(): JSX.Element {
 function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
   const { snapshot, setSnapshot, run } = useStore()
   const defs = snapshot!.assessmentDefs
+  const crop = snapshot!.protocol.crop
   const [draft, setDraft] = useState({ partRated: '', ratingType: '', ratingUnit: '', timing: '', subsamples: 1 })
 
   const save = (next: AssessmentDef[]): void => {
@@ -380,34 +403,38 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
         <div className="row">
           <div style={{ width: 160 }}>
             <label>Rating type</label>
-            <input
-              placeholder="e.g. CONTRO, PHYGEN"
+            <Combobox
+              category="rating_type"
+              crop={crop}
               value={draft.ratingType}
-              onChange={(e) => setDraft({ ...draft, ratingType: e.target.value })}
+              onChange={(v) => setDraft({ ...draft, ratingType: v })}
             />
           </div>
           <div style={{ width: 160 }}>
             <label>Part rated</label>
-            <input
-              placeholder="e.g. PLANT, LEAF"
+            <Combobox
+              category="part_rated"
+              crop={crop}
               value={draft.partRated}
-              onChange={(e) => setDraft({ ...draft, partRated: e.target.value })}
+              onChange={(v) => setDraft({ ...draft, partRated: v })}
             />
           </div>
           <div style={{ width: 110 }}>
             <label>Unit</label>
-            <input
-              placeholder="%, count"
+            <Combobox
+              category="unit"
+              crop={crop}
               value={draft.ratingUnit}
-              onChange={(e) => setDraft({ ...draft, ratingUnit: e.target.value })}
+              onChange={(v) => setDraft({ ...draft, ratingUnit: v })}
             />
           </div>
           <div style={{ width: 130 }}>
             <label>Timing</label>
-            <input
-              placeholder="e.g. 14 DA-A"
+            <Combobox
+              category="timing"
+              crop={crop}
               value={draft.timing}
-              onChange={(e) => setDraft({ ...draft, timing: e.target.value })}
+              onChange={(v) => setDraft({ ...draft, timing: v })}
             />
           </div>
           <div style={{ width: 90 }}>
