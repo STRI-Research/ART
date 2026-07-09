@@ -57,6 +57,20 @@ CI (`.github/workflows/ci.yml`) does `npm ci` → `npm run rebuild:node` → lin
 runs against the Node ABI. Tests that need R (`randomize`, `aov`, `alpha-conformance`) skip
 automatically when `Rscript`/`agricolae` aren't present.
 
+## Adding schema fields or form controls (the anti-bloat gate)
+
+ART deliberately avoids becoming a wall of data-capture boxes — see
+[docs/DESIGN-PRINCIPLES.md](docs/DESIGN-PRINCIPLES.md). Any PR that adds a database column or
+a form field must state, in its description, **which ART feature consumes the value**
+(randomizer, analysis, trial map, data entry, or report).
+
+If no feature consumes it, don't add the field — triage the need down this ladder instead:
+
+1. an existing freeform **note** field,
+2. a **library term** (the coded-field vocabulary),
+3. a **generic property** mechanism (if one exists by then),
+4. an **import/attachment** for data that already exists elsewhere.
+
 ## Commits & PRs
 
 Work on a branch, keep changes focused, and make sure `lint`, `typecheck`, and `test` pass.

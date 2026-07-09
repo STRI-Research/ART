@@ -56,7 +56,9 @@ npm run lint         # ESLint (fails on warnings); npm run format for Prettier
 npm run build        # production build into out/
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, and
+[docs/DESIGN-PRINCIPLES.md](docs/DESIGN-PRINCIPLES.md) for the design philosophy — in
+particular the rule that a field only gets a dedicated box if the software itself consumes it.
 
 ### Testing
 
