@@ -13,7 +13,7 @@ export const TESTS: { id: MeanComparisonTest; label: string }[] = [
 ]
 
 export function StatsView(): JSX.Element {
-  const { snapshot, rEnv, aovResults, setAov, run } = useStore()
+  const { snapshot, rEnv, aovResults, setAov, setView, run } = useStore()
   // Only assessments flagged for analysis are eligible.
   const headers = snapshot!.assessmentHeaders.filter((h) => h.analyze)
   const [headerId, setHeaderId] = useState<number | null>(headers[0]?.id ?? null)
@@ -120,6 +120,11 @@ export function StatsView(): JSX.Element {
             <div className="card">
               <h2>Treatment Means</h2>
               <MeansTable result={result} treatments={snapshot!.treatments} />
+            </div>
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <button className="primary" onClick={() => setView('report')}>
+                Open full report →
+              </button>
             </div>
           </>
         )

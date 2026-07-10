@@ -295,6 +295,7 @@ export function ProtocolView(): JSX.Element {
                 {!readOnly && (
                   <td>
                     <button
+                      className="danger"
                       title="Remove"
                       onClick={() => saveTreatments(treatments.filter((_, idx) => idx !== i))}
                     >
@@ -395,7 +396,9 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
                 </td>
                 {!readOnly && (
                   <td>
-                    <button onClick={() => save(defs.filter((_, idx) => idx !== i))}>✕</button>
+                    <button className="danger" onClick={() => save(defs.filter((_, idx) => idx !== i))}>
+                      ✕
+                    </button>
                   </td>
                 )}
               </tr>

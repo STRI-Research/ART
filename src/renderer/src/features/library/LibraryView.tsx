@@ -116,7 +116,7 @@ export function LibraryView(): JSX.Element {
               {showCrops && <td className="muted">{t.crops.join(', ') || '—'}</td>}
               <td className="num">{t.useCount}</td>
               <td>
-                <button onClick={() => remove(t.id)} title="Remove term">
+                <button className="danger" onClick={() => remove(t.id)} title="Remove term">
                   ✕
                 </button>
               </td>

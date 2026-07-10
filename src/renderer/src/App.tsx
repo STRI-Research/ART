@@ -10,7 +10,6 @@ import { ReportView } from './features/report/ReportView'
 import { LibraryView } from './features/library/LibraryView'
 import { AuditView } from './features/audit/AuditView'
 import { REnvBanner } from './components/REnvBanner'
-import { validateDesign } from '@shared/design'
 import type { Role, ProjectSnapshot } from '@shared/types'
 
 type OpenFn = () => Promise<ProjectSnapshot | null>
@@ -20,25 +19,21 @@ interface NavItem {
   label: string
   needsTrial?: boolean
   needsLock?: boolean // requires the layout to be confirmed & locked
+  step?: number // ordinal in the linear workflow (undefined = reference/utility)
 }
 
-// Navigation differs by role: a protocol is authored; a trial is implemented.
+// The sidebar is the workflow, ordered by role (a protocol is authored; a trial is implemented).
+// Utilities (Library, Audit) live in the native File menu, not here — keep the sidebar focused.
 const NAV: Record<Role, NavItem[]> = {
-  protocol: [
-    { id: 'protocol', label: 'Protocol & Assessments' },
-    { id: 'library', label: 'Library' },
-    { id: 'audit', label: 'Audit' }
-  ],
+  protocol: [{ id: 'protocol', label: 'Protocol & Assessments' }],
   trial: [
     { id: 'protocol', label: 'Protocol (locked)' },
-    { id: 'site', label: 'Site & Randomization' },
-    { id: 'trialmap', label: 'Trial Map', needsTrial: true },
-    { id: 'assessments', label: 'Assessments', needsTrial: true, needsLock: true },
-    { id: 'dataentry', label: 'Data Entry', needsTrial: true, needsLock: true },
-    { id: 'stats', label: 'Statistics', needsTrial: true, needsLock: true },
-    { id: 'report', label: 'Report', needsTrial: true, needsLock: true },
-    { id: 'library', label: 'Library' },
-    { id: 'audit', label: 'Audit' }
+    { id: 'site', label: 'Site & Randomization', step: 1 },
+    { id: 'trialmap', label: 'Trial Map', step: 2, needsTrial: true },
+    { id: 'assessments', label: 'Assessment Columns', step: 3, needsTrial: true, needsLock: true },
+    { id: 'dataentry', label: 'Enter Data', step: 4, needsTrial: true, needsLock: true },
+    { id: 'stats', label: 'Statistics', step: 5, needsTrial: true, needsLock: true },
+    { id: 'report', label: 'Report', step: 6, needsTrial: true, needsLock: true }
   ]
 }
 
@@ -69,7 +64,7 @@ function Welcome(): JSX.Element {
     <div className="welcome">
       <h1>ART</h1>
       <p className="muted">
-        Open-source Agricultural Research Manager
+        Open-source Agricultural Research Tool
         <br />
         Author protocols, distribute them to trial sites, collect data, and analyze with ANOVA.
       </p>
@@ -113,7 +108,7 @@ function Welcome(): JSX.Element {
 }
 
 export default function App(): JSX.Element {
-  const { snapshot, view, setView, setSnapshot, setREnv, busy, error, setError, notice, setNotice, run, sidebarOpen, toggleSidebar } =
+  const { snapshot, view, setView, setSnapshot, setREnv, busy, error, setError, notice, setNotice, saved, run, sidebarOpen, toggleSidebar } =
     useStore()
 
   // Pick a sensible starting view for a freshly opened/created document.
@@ -167,6 +162,8 @@ export default function App(): JSX.Element {
         case 'trial.newFromCurrent': doNewFromCurrent(); break
         case 'file.close': doClose(); break
         case 'sidebar.toggle': toggleSidebar(); break
+        case 'view.library': setView('library'); break
+        case 'view.audit': setView('audit'); break
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,15 +173,29 @@ export default function App(): JSX.Element {
   const hasTrial = !!snapshot?.trial
   const layoutLocked = !!snapshot?.trial?.layoutLockedAt
   const nav = NAV[role]
-  const protocolDesignOk = snapshot
-    ? validateDesign(
-        snapshot.protocol.design,
-        snapshot.protocol.replicates,
-        snapshot.protocol.blockSize,
-        snapshot.treatments.length
-      ).ok
-    : true
 
+  // A workflow step is "done" once its output exists (drives the sidebar's ✓ / step / 🔒 state).
+  const stepDone = (id: ViewId): boolean =>
+    (id === 'site' && hasTrial) || (id === 'trialmap' && layoutLocked)
+
+  const renderNavItem = (n: NavItem): JSX.Element => {
+    const disabled = (n.needsTrial && !hasTrial) || (n.needsLock && !layoutLocked)
+    const done = stepDone(n.id)
+    const title = disabled ? 'Confirm & lock the layout first' : undefined
+    const badge = n.step ? (done ? '✓' : disabled ? '🔒' : String(n.step)) : null
+    return (
+      <button
+        key={n.id}
+        className={`nav-item${view === n.id ? ' active' : ''}${disabled ? ' locked' : ''}${done ? ' done' : ''}`}
+        disabled={disabled}
+        title={title}
+        onClick={() => setView(n.id)}
+      >
+        {badge && <span className="nav-step">{badge}</span>}
+        {n.label}
+      </button>
+    )
+  }
   // Keep the native menu's applicability in sync with the open document.
   useEffect(() => {
     window.art.menu.setState({ role: snapshot?.role ?? null, hasDocument: !!snapshot })
@@ -198,18 +209,16 @@ export default function App(): JSX.Element {
         {snapshot && (
           <span className={`role-badge ${role}`}>{role === 'trial' ? 'Trial' : 'Protocol'}</span>
         )}
-        {snapshot && <span className="file">{snapshot.filePath}</span>}
+        {snapshot && (
+          <span className="file" title={snapshot.filePath}>
+            {snapshot.protocol.title || snapshot.filePath.split(/[\\/]/).pop()}
+          </span>
+        )}
         <div className="spacer" />
-        {busy && <span className="muted">{busy}…</span>}
-        {snapshot && role === 'protocol' && (
-          <button
-            className="primary"
-            onClick={doNewFromCurrent}
-            disabled={!protocolDesignOk}
-            title={protocolDesignOk ? undefined : 'The protocol design is non-conformant — see the Protocol tab.'}
-          >
-            Create Trial from this Protocol →
-          </button>
+        {busy ? (
+          <span className="muted">{busy}…</span>
+        ) : (
+          saved && <span className="saved-flash">✓ Saved</span>
         )}
       </header>
 
@@ -222,22 +231,7 @@ export default function App(): JSX.Element {
         >
           {sidebarOpen ? '◀' : '▶'}
         </button>
-        {snapshot &&
-          nav.map((n) => {
-            const disabled = (n.needsTrial && !hasTrial) || (n.needsLock && !layoutLocked)
-            const title = n.needsLock && !layoutLocked ? 'Confirm & lock the layout first' : undefined
-            return (
-              <button
-                key={n.id}
-                className={`nav-item ${view === n.id ? 'active' : ''}`}
-                disabled={disabled}
-                title={title}
-                onClick={() => setView(n.id)}
-              >
-                {n.label}
-              </button>
-            )
-          })}
+        {snapshot && nav.map(renderNavItem)}
       </nav>
 
       <main className="main">

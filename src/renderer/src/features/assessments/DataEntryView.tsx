@@ -16,8 +16,13 @@ type GridRow = {
 }
 
 export function DataEntryView(): JSX.Element {
-  const { snapshot, setSnapshot, run } = useStore()
+  const { snapshot, setSnapshot, setView, run } = useStore()
   const headers = snapshot!.assessmentHeaders
+  // Plots excluded from analysis are hatched in the grid (matching the Trial Map).
+  const excludedPlotIds = useMemo(
+    () => new Set(snapshot!.plots.filter((p) => p.excluded).map((p) => p.id)),
+    [snapshot]
+  )
   const treatmentName = useMemo(() => {
     const m = new Map(snapshot!.treatments.map((t) => [t.id!, t]))
     return (id: number): string => {
@@ -199,29 +204,51 @@ export function DataEntryView(): JSX.Element {
   }, [expanded])
 
   return (
-    <div className="card">
-      <h2>Data Entry</h2>
-      {headers.length === 0 ? (
-        <p className="muted">Add an assessment column on the Assessments tab to begin entering data.</p>
-      ) : (
-        <>
+    <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <h2 style={{ margin: 0 }}>Enter Data</h2>
+          <button className="link" onClick={() => setView('assessments')}>
+            ← Edit columns
+          </button>
+        </div>
+        {headers.length === 0 ? (
           <p className="muted">
-            One row per plot. For assessments with subsamples the cell shows the plot mean
-            (read-only); select that cell to expand every plot into its subsample rows for entry.
-            The mean is the value used in analysis.
+            Add an assessment column on the <strong>Assessment Columns</strong> tab to begin entering
+            data.
           </p>
-          <DataSheetGrid<GridRow>
-            ref={gridRef}
-            value={rows}
-            columns={columns}
-            onChange={onChange}
-            onActiveCellChange={onActiveCellChange}
-            rowKey={({ rowData }): string => rowData.rowKey ?? ''}
-            lockRows
-            height={460}
-          />
-        </>
+        ) : (
+          <>
+            <p className="muted">
+              One row per plot. For assessments with subsamples the cell shows the plot mean
+              (read-only); select that cell to expand every plot into its subsample rows for entry.
+              The mean is the value used in analysis.
+            </p>
+            <DataSheetGrid<GridRow>
+              ref={gridRef}
+              value={rows}
+              columns={columns}
+              onChange={onChange}
+              onActiveCellChange={onActiveCellChange}
+              rowKey={({ rowData }): string => rowData.rowKey ?? ''}
+              rowClassName={({ rowData }): string | undefined =>
+                rowData.plotId != null && excludedPlotIds.has(rowData.plotId)
+                  ? 'dsg-row-excluded'
+                  : undefined
+              }
+              lockRows
+              height={460}
+            />
+          </>
+        )}
+      </div>
+      {headers.length > 0 && (
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button className="primary" onClick={() => setView('stats')}>
+            Analyze →
+          </button>
+        </div>
       )}
-    </div>
+    </>
   )
 }

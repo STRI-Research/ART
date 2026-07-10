@@ -7,6 +7,7 @@ export function TrialMapView(): JSX.Element {
   // Pending exclusion awaiting a reason (Electron has no window.prompt).
   const [excluding, setExcluding] = useState<{ plotId: number; plotNumber: number } | null>(null)
   const [reason, setReason] = useState('')
+  const [confirmingLock, setConfirmingLock] = useState(false)
   const trial = snapshot!.trial!
   const protocol = snapshot!.protocol
   const plots = snapshot!.plots
@@ -52,12 +53,8 @@ export function TrialMapView(): JSX.Element {
     )
   }
 
-  const confirmLock = (): void => {
-    const ok = window.confirm(
-      'Confirm & lock this layout?\n\nThis finalizes the randomization and enables data entry. ' +
-        'The layout cannot be changed afterward (plots can only be excluded from analysis).'
-    )
-    if (!ok) return
+  const doLock = (): void => {
+    setConfirmingLock(false)
     run('Locking layout', async () => {
       const next = await window.art.trial.lockLayout()
       setSnapshot(next)
@@ -81,7 +78,7 @@ export function TrialMapView(): JSX.Element {
         {locked ? (
           <span className="lock-badge">🔒 Locked {new Date(trial.layoutLockedAt).toLocaleString()}</span>
         ) : (
-          <button className="primary" onClick={confirmLock}>
+          <button className="primary" onClick={() => setConfirmingLock(true)}>
             Confirm &amp; lock layout
           </button>
         )}
@@ -149,8 +146,26 @@ export function TrialMapView(): JSX.Element {
             />
             <div className="row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
               <button onClick={() => setExcluding(null)}>Cancel</button>
-              <button className="primary" disabled={!reason.trim()} onClick={confirmExclude}>
+              <button className="primary danger" disabled={!reason.trim()} onClick={confirmExclude}>
                 Exclude plot
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmingLock && (
+        <div className="modal-overlay" onClick={() => setConfirmingLock(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>Confirm &amp; lock this layout?</h3>
+            <p className="muted">
+              This finalizes the randomization and enables data entry. The layout cannot be changed
+              afterward — plots can only be excluded from analysis.
+            </p>
+            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+              <button onClick={() => setConfirmingLock(false)}>Cancel</button>
+              <button className="primary" onClick={doLock}>
+                Lock layout
               </button>
             </div>
           </div>

@@ -460,10 +460,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   // --- Menu state (renderer tells the native menu what's applicable) ---
   handle(IPC.menuSetState, (input: unknown) => {
-    const { role } = z
+    const { role, hasDocument } = z
       .object({ role: z.enum(['protocol', 'trial']).nullable(), hasDocument: z.boolean() })
       .parse(input)
     setMenuEnabled('trial-from-current', role === 'protocol')
+    // Library/Audit views only render with a document open.
+    setMenuEnabled('nav-library', hasDocument)
+    setMenuEnabled('nav-audit', hasDocument)
     return true
   })
 

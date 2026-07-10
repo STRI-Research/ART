@@ -46,6 +46,14 @@ export function buildMenu(win: BrowserWindow): Menu {
       ]
     },
     {
+      label: 'Tools',
+      submenu: [
+        // Utility destinations live here (not the workflow sidebar); enabled when a document is open.
+        { id: 'nav-library', label: 'Library', enabled: false, click: send('view.library') },
+        { id: 'nav-audit', label: 'Audit', enabled: false, click: send('view.audit') }
+      ]
+    },
+    {
       role: 'help',
       submenu: [
         {

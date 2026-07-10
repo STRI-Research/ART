@@ -5,9 +5,19 @@ import type { AssessmentHeader } from '@shared/types'
 
 export function AssessmentsView(): JSX.Element {
   const snapshot = useStore((s) => s.snapshot)
+  const setView = useStore((s) => s.setView)
   const trial = snapshot!.trial!
   const headers = snapshot!.assessmentHeaders
-  return <HeaderManager trialId={trial.id!} headers={headers} />
+  return (
+    <>
+      <HeaderManager trialId={trial.id!} headers={headers} />
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button className="primary" onClick={() => setView('dataentry')}>
+          Enter data →
+        </button>
+      </div>
+    </>
+  )
 }
 
 function HeaderManager({
@@ -134,7 +144,13 @@ function HeaderManager({
                     }
                   />
                 </td>
-                <td>{h.origin === 'core' || h.locked ? null : <button onClick={() => remove(h.id!)}>✕</button>}</td>
+                <td>
+                  {h.origin === 'core' || h.locked ? null : (
+                    <button className="danger" onClick={() => remove(h.id!)} title="Remove column">
+                      ✕
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -9,6 +9,8 @@
   --danger: #c0392b;
   --warn: #b7791f;
   --warn-bg: #fdf6e3;
+  /* Red hatching used to mark excluded plots (Trial Map cells + Data Entry rows). */
+  --hatch-danger: repeating-linear-gradient(45deg, #fbeaea, #fbeaea 6px, #fff 6px, #fff 12px);
 }
 
 * {
@@ -71,6 +73,21 @@ body {
 .app-header .spacer {
   flex: 1;
 }
+.saved-flash {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-dark);
+  animation: fadeout 1.4s ease-in forwards;
+}
+@keyframes fadeout {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 
 .sidebar {
   grid-area: sidebar;
@@ -127,9 +144,42 @@ body {
   background: var(--accent);
   color: white;
 }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .nav-item:disabled {
   color: var(--muted);
   cursor: not-allowed;
+}
+/* Ordered-step badge (number, ✓ when done, 🔒 when still locked). */
+.nav-step {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  background: #e6e8ec;
+  color: var(--muted);
+}
+.nav-item.active .nav-step {
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+.nav-item.done .nav-step {
+  background: var(--accent);
+  color: #fff;
+}
+.nav-item.active.done .nav-step {
+  background: rgba(255, 255, 255, 0.28);
+}
+.nav-item.locked {
+  opacity: 0.75;
 }
 
 .main {
@@ -147,7 +197,17 @@ body {
 }
 .card h2 {
   margin: 0 0 14px;
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.card h3 {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 18px 0 8px;
 }
 
 button {
@@ -172,6 +232,34 @@ button.primary:hover {
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+/* Text-link-styled button (inline navigation affordances). */
+button.link {
+  border: none;
+  background: none;
+  padding: 4px 2px;
+  color: var(--accent-dark);
+  font-size: 13px;
+}
+button.link:hover {
+  background: none;
+  text-decoration: underline;
+}
+/* Destructive actions (remove / delete / exclude). */
+button.danger {
+  color: var(--danger);
+  border-color: #e3b5af;
+}
+button.danger:hover {
+  background: #fbeaea;
+}
+button.danger.primary {
+  background: var(--danger);
+  color: #fff;
+  border-color: #a5322a;
+}
+button.danger.primary:hover {
+  background: #a5322a;
 }
 
 label {
@@ -334,6 +422,10 @@ table.data td.num {
   cursor: pointer;
   background: white;
   font-size: 12px;
+}
+.plot-cell:hover:not(.excluded) {
+  border-color: var(--accent);
+  box-shadow: 0 1px 4px rgba(47, 125, 79, 0.15);
 }
 .plot-cell.selected {
   outline: 2px solid var(--accent);
@@ -532,6 +624,17 @@ select:disabled {
   color: var(--muted);
   margin: 0 0 12px;
 }
+/* Site/detail row headings read as left-aligned labels on screen (print already does this). */
+.report-meta th {
+  text-align: left;
+  padding-right: 12px;
+  white-space: nowrap;
+  vertical-align: top;
+  font-weight: 600;
+}
+.report-meta td {
+  padding-right: 20px;
+}
 
 /* Layout lock + plot exclusion */
 .lock-badge {
@@ -546,14 +649,12 @@ select:disabled {
 }
 .plot-cell.excluded {
   opacity: 0.55;
-  background: repeating-linear-gradient(
-    45deg,
-    #fbeaea,
-    #fbeaea 6px,
-    #fff 6px,
-    #fff 12px
-  );
+  background: var(--hatch-danger);
   border-color: var(--danger);
+}
+/* Excluded plots in the Data Entry grid get the same hatching as the Trial Map. */
+.dsg-row-excluded .dsg-cell {
+  background: var(--hatch-danger);
 }
 .plot-cell .excluded-tag {
   display: inline-block;

@@ -20,6 +20,8 @@ interface AppState {
   error: string | null
   /** Transient success/info confirmation (distinct from error). */
   notice: string | null
+  /** Briefly true just after a save/mutation completes (drives the header "Saved" flash). */
+  saved: boolean
   /** Whether the left navigation sidebar is shown. Persisted across sessions. */
   sidebarOpen: boolean
   /** ANOVA results keyed by assessment header id, shared by Stats and Report. */
@@ -37,6 +39,9 @@ interface AppState {
   run: <T>(label: string, fn: () => Promise<T>) => Promise<T | undefined>
 }
 
+let noticeTimer: ReturnType<typeof setTimeout> | undefined
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+
 export const useStore = create<AppState>((set) => ({
   snapshot: null,
   view: 'protocol',
@@ -44,6 +49,7 @@ export const useStore = create<AppState>((set) => ({
   busy: null,
   error: null,
   notice: null,
+  saved: false,
   sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
   aovResults: {},
 
@@ -63,20 +69,34 @@ export const useStore = create<AppState>((set) => ({
     }),
   setREnv: (rEnv) => set({ rEnv }),
   setError: (error) => set({ error }),
-  setNotice: (notice) => set({ notice }),
+  setNotice: (notice) => {
+    set({ notice })
+    if (noticeTimer) clearTimeout(noticeTimer)
+    // Success/info notices are transient; errors stay until dismissed.
+    if (notice) noticeTimer = setTimeout(() => set({ notice: null }), 4000)
+  },
   setAov: (headerId, result) =>
     set((state) => ({ aovResults: { ...state.aovResults, [headerId]: result } })),
   resetAov: () => set({ aovResults: {} }),
 
   run: async (label, fn) => {
-    set({ busy: label, error: null })
+    set({ busy: label, error: null, saved: false })
+    let ok = false
     try {
-      return await fn()
+      const r = await fn()
+      ok = true
+      return r
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
       return undefined
     } finally {
       set({ busy: null })
+      // Briefly confirm silent autosaves/mutations (not reads like opening/analyzing).
+      if (ok && /^(Saving|Adding|Updating|Removing|Renaming|Swapping|Excluding|Including|Locking|Generating)/.test(label)) {
+        set({ saved: true })
+        if (savedTimer) clearTimeout(savedTimer)
+        savedTimer = setTimeout(() => set({ saved: false }), 1400)
+      }
     }
   }
 }))
