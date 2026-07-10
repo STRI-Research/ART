@@ -316,6 +316,60 @@ export function swapPlotTreatments(plotIdA: number, plotIdB: number, db: Databas
   tx()
 }
 
+/**
+ * Move a plot to a grid cell (physical layout only — never touches treatment/rep/block/number, so
+ * the randomization and analysis are unaffected). If another plot occupies the target cell, the two
+ * swap positions; otherwise the plot moves to the (empty) cell.
+ */
+export function movePlotToCell(
+  plotId: number,
+  mapRow: number,
+  mapCol: number,
+  db: Database.Database = getDb()
+): void {
+  const tx = db.transaction(() => {
+    const src = db.prepare('SELECT trial_id, map_row, map_col FROM plot WHERE id = ?').get(plotId) as
+      | { trial_id: number; map_row: number; map_col: number }
+      | undefined
+    if (!src) throw new Error('Plot not found for move')
+    const occupant = db
+      .prepare('SELECT id FROM plot WHERE trial_id = ? AND map_row = ? AND map_col = ? AND id != ?')
+      .get(src.trial_id, mapRow, mapCol, plotId) as { id: number } | undefined
+    if (occupant) {
+      db.prepare('UPDATE plot SET map_row = ?, map_col = ? WHERE id = ?').run(
+        src.map_row,
+        src.map_col,
+        occupant.id
+      )
+    }
+    db.prepare('UPDATE plot SET map_row = ?, map_col = ? WHERE id = ?').run(mapRow, mapCol, plotId)
+  })
+  tx()
+}
+
+/**
+ * Re-flow every plot (in plotNumber order) into a grid `cols` wide and update the trial's
+ * dimensions. Physical layout only. Used by the Columns control and Reset.
+ */
+export function reshapeLayout(cols: number, db: Database.Database = getDb()): void {
+  if (!Number.isInteger(cols) || cols < 1) throw new Error('Columns must be a positive whole number.')
+  const trial = getTrial(db)
+  if (!trial) throw new Error('No trial to reshape.')
+  const plots = db
+    .prepare('SELECT id FROM plot WHERE trial_id = ? ORDER BY plot_number')
+    .all(trial.id!) as { id: number }[]
+  const tx = db.transaction(() => {
+    const upd = db.prepare('UPDATE plot SET map_row = ?, map_col = ? WHERE id = ?')
+    plots.forEach((p, i) => upd.run(Math.floor(i / cols), i % cols, p.id))
+    db.prepare('UPDATE trial SET plot_cols = ?, plot_rows = ? WHERE id = ?').run(
+      cols,
+      Math.ceil(plots.length / cols),
+      trial.id!
+    )
+  })
+  tx()
+}
+
 // --- Assessments ------------------------------------------------------------
 export function listAssessmentHeaders(
   trialId: number,

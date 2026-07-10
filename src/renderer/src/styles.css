@@ -410,31 +410,133 @@ table.data td.num {
 }
 
 /* Trial map grid */
+.trialmap-wrap {
+  overflow: auto;
+  max-width: 100%;
+  padding-bottom: 4px;
+}
 .trialmap {
   display: grid;
-  gap: 6px;
+  gap: 3px;
+  width: max-content;
 }
 .plot-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px;
-  min-height: 56px;
+  border-radius: 5px;
+  padding: 3px;
   cursor: pointer;
   background: white;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.15;
+  overflow: hidden;
+  text-align: center;
 }
-.plot-cell:hover:not(.excluded) {
+.plot-cell:hover:not(.excluded):not(.empty) {
   border-color: var(--accent);
   box-shadow: 0 1px 4px rgba(47, 125, 79, 0.15);
 }
 .plot-cell.selected {
+  outline: 3px solid var(--accent-dark);
+  outline-offset: -1px;
+  background: #d7ecdf;
+  box-shadow: 0 2px 8px rgba(37, 101, 64, 0.35);
+}
+.plot-cell.dragover {
+  outline: 2px dashed var(--accent);
+  outline-offset: -1px;
+  background: #eef7f1;
+}
+.plot-cell.eligible {
   outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  background: #e7f5ec;
+  box-shadow: 0 1px 6px rgba(47, 125, 79, 0.25);
+}
+.plot-cell.dim {
+  opacity: 0.28;
+  filter: grayscale(0.85);
+}
+.plot-cell.empty {
+  border-style: dashed;
+  opacity: 0.4;
+  cursor: default;
 }
 .plot-cell .pnum {
-  font-weight: 600;
+  font-weight: 700;
 }
 .plot-cell .trt {
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+/* Trial map edge headers */
+.tm-corner {
+  aspect-ratio: 1;
+}
+.tm-colhead,
+.tm-rowhead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
   color: var(--muted);
+}
+/* Segmented mode toggle */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.segmented button {
+  border: none;
+  border-radius: 0;
+  background: var(--panel);
+  padding: 6px 12px;
+}
+.segmented button + button {
+  border-left: 1px solid var(--border);
+}
+.segmented button.active {
+  background: var(--accent);
+  color: #fff;
+}
+/* Grid + legend side by side, so toggling colour-by never shifts the grid vertically. */
+.trialmap-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.trialmap-layout .trialmap-wrap {
+  flex: 0 1 auto;
+}
+/* Colour-by legend — a column beside the grid. */
+.tm-legend {
+  flex: none;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 520px;
+  overflow: auto;
+  font-size: 12px;
+}
+.tm-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.tm-swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .means-letter {
