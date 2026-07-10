@@ -19,6 +19,8 @@ export const IPC = {
   trialGenerate: 'trial:generate',
   trialLockLayout: 'trial:lockLayout',
   plotSwap: 'plot:swap',
+  plotMove: 'plot:move',
+  layoutReshape: 'layout:reshape',
   plotSetExcluded: 'plot:setExcluded',
 
   // Assessments

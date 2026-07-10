@@ -92,3 +92,25 @@ export function validateDesign(
 
   return { ok: true, validReplicates }
 }
+
+/**
+ * Whether two plots' treatments may be swapped without changing the design (and thus the analysis).
+ * Position moves are always fine; only *treatment* swaps are constrained:
+ * - CRD: no blocking — a swap preserves each treatment's replicate count, so any swap is valid.
+ * - RCB: block = rep; a cross-rep swap would duplicate a treatment in one rep — require same rep.
+ * - ALPHA: a cross-block swap would change an incomplete block's composition (wrong PBIB analysis)
+ *   — require the same rep *and* the same incomplete block.
+ */
+export function canSwapTreatments(
+  design: DesignType,
+  a: { rep: number; block: number },
+  b: { rep: number; block: number }
+): boolean {
+  if (design === 'CRD') return true
+  return a.rep === b.rep && a.block === b.block
+}
+
+/** Default grid width used at generation (and by Reset): one incomplete block or one full rep per row. */
+export function defaultCols(design: DesignType, blockSize: number, treatmentCount: number): number {
+  return design === 'ALPHA' ? blockSize : treatmentCount
+}

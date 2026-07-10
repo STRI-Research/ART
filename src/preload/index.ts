@@ -47,6 +47,10 @@ const api = {
     lockLayout: (): Promise<ProjectSnapshot> => ipcRenderer.invoke(IPC.trialLockLayout),
     swapPlots: (a: number, b: number): Promise<ProjectSnapshot> =>
       ipcRenderer.invoke(IPC.plotSwap, a, b),
+    movePlot: (plotId: number, mapRow: number, mapCol: number): Promise<ProjectSnapshot> =>
+      ipcRenderer.invoke(IPC.plotMove, { plotId, mapRow, mapCol }),
+    reshapeLayout: (cols: number): Promise<ProjectSnapshot> =>
+      ipcRenderer.invoke(IPC.layoutReshape, cols),
     setPlotExcluded: (plotId: number, excluded: boolean, reason: string): Promise<ProjectSnapshot> =>
       ipcRenderer.invoke(IPC.plotSetExcluded, { plotId, excluded, reason })
   },

@@ -15,7 +15,7 @@ import {
   type Plot
 } from '@shared/types.js'
 import { z } from 'zod'
-import { validateDesign } from '@shared/design.js'
+import { validateDesign, canSwapTreatments, defaultCols } from '@shared/design.js'
 import { LibraryCategory, type LibraryExport } from '@shared/types.js'
 import * as library from '../library/store.js'
 import { openProject, closeProject, getCurrentPath } from '../db/connection.js'
@@ -257,7 +257,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
     // Layout: RCB/CRD lay out one full replicate per row (columns = treatments). ALPHA
     // lays out one incomplete block per row (columns = block size k).
-    const plotCols = protocol.design === 'ALPHA' ? protocol.blockSize : treatments.length
+    const plotCols = defaultCols(protocol.design, protocol.blockSize, treatments.length)
     const plotRows = Math.ceil(randomized.length / plotCols)
     const byNumber = new Map(treatments.map((t) => [t.number, t.id!]))
 
@@ -304,11 +304,43 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const plotIdB = z.number().int().parse(b)
     const pa = dao.getPlot(plotIdA)
     const pb = dao.getPlot(plotIdB)
+    if (!pa || !pb) throw new Error('Plot not found for swap.')
+    // Only allow analysis-neutral treatment swaps (same block/rep, per the design).
+    if (!canSwapTreatments(dao.getProtocol().design, pa, pb)) {
+      throw new Error(
+        'Treatments can only be swapped within the same block/rep — swapping across blocks would change the design and invalidate the analysis.'
+      )
+    }
     dao.swapPlotTreatments(plotIdA, plotIdB)
-    recordAudit('plot.swap', 'plot', `Swapped treatments: plot #${pa?.plotNumber} ↔ plot #${pb?.plotNumber}`, {
+    recordAudit('plot.swap', 'plot', `Swapped treatments: plot #${pa.plotNumber} ↔ plot #${pb.plotNumber}`, {
       a: plotIdA,
       b: plotIdB
     })
+    return dao.snapshot()
+  })
+
+  handle(IPC.plotMove, (input: unknown): ProjectSnapshot => {
+    assertRole('trial')
+    assertLayoutUnlocked()
+    const { plotId, mapRow, mapCol } = z
+      .object({ plotId: z.number().int(), mapRow: z.number().int().min(0), mapCol: z.number().int().min(0) })
+      .parse(input)
+    const p = dao.getPlot(plotId)
+    dao.movePlotToCell(plotId, mapRow, mapCol)
+    recordAudit('plot.move', 'plot', `Moved plot #${p?.plotNumber} to r${mapRow}c${mapCol}`, {
+      plotId,
+      mapRow,
+      mapCol
+    })
+    return dao.snapshot()
+  })
+
+  handle(IPC.layoutReshape, (cols: unknown): ProjectSnapshot => {
+    assertRole('trial')
+    assertLayoutUnlocked()
+    const n = z.number().int().min(1).parse(cols)
+    dao.reshapeLayout(n)
+    recordAudit('layout.reshape', 'trial', `Reshaped layout to ${n} columns`, { cols: n })
     return dao.snapshot()
   })
 

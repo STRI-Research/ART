@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateDesign } from './design.js'
+import { validateDesign, canSwapTreatments, defaultCols } from './design.js'
 
 describe('validateDesign', () => {
   it('accepts RCB/CRD with >= 2 treatments and >= 2 replicates', () => {
@@ -43,5 +43,28 @@ describe('validateDesign', () => {
 
     // t=15, k=3, s=5 (gcd(5,6)=1) -> r=4 valid
     expect(validateDesign('ALPHA', 4, 3, 15).ok).toBe(true)
+  })
+})
+
+describe('canSwapTreatments', () => {
+  it('CRD allows any swap (no blocking)', () => {
+    expect(canSwapTreatments('CRD', { rep: 1, block: 1 }, { rep: 3, block: 3 })).toBe(true)
+  })
+  it('RCB requires the same rep', () => {
+    expect(canSwapTreatments('RCB', { rep: 2, block: 2 }, { rep: 2, block: 2 })).toBe(true)
+    expect(canSwapTreatments('RCB', { rep: 1, block: 1 }, { rep: 2, block: 2 })).toBe(false)
+  })
+  it('ALPHA requires the same rep and block', () => {
+    expect(canSwapTreatments('ALPHA', { rep: 1, block: 2 }, { rep: 1, block: 2 })).toBe(true)
+    expect(canSwapTreatments('ALPHA', { rep: 1, block: 1 }, { rep: 1, block: 2 })).toBe(false) // cross-block
+    expect(canSwapTreatments('ALPHA', { rep: 1, block: 1 }, { rep: 2, block: 1 })).toBe(false) // cross-rep
+  })
+})
+
+describe('defaultCols', () => {
+  it('is the treatment count for RCB/CRD and the block size for ALPHA', () => {
+    expect(defaultCols('RCB', 3, 8)).toBe(8)
+    expect(defaultCols('CRD', 3, 5)).toBe(5)
+    expect(defaultCols('ALPHA', 3, 9)).toBe(3)
   })
 })
