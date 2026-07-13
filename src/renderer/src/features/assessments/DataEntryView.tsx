@@ -3,6 +3,7 @@ import { DataSheetGrid, keyColumn, floatColumn, textColumn } from 'react-datashe
 import type { DataSheetGridRef } from 'react-datasheet-grid'
 import 'react-datasheet-grid/dist/style.css'
 import { useStore } from '../../store'
+import { Combobox } from '../../components/Combobox'
 import type { AssessmentHeader, AssessmentValue } from '@shared/types'
 
 // Index-signature shape (not an interface with required fields) so it stays structurally
@@ -34,6 +35,7 @@ export function DataEntryView(): JSX.Element {
   const title = (h: AssessmentHeader): string =>
     h.description || h.ratingType || `Assessment ${h.ordinal + 1}`
   const subCount = (h: AssessmentHeader): number => Math.max(1, h.subsamples ?? 1)
+  const crop = snapshot!.protocol.crop
 
   // value lookup: `${headerId}:${plotId}:${subsample}` -> value
   const valueMap = useMemo(() => {
@@ -243,6 +245,9 @@ export function DataEntryView(): JSX.Element {
         )}
       </div>
       {headers.length > 0 && (
+        <AssessmentMetadataPanel headers={headers} crop={crop} title={title} />
+      )}
+      {headers.length > 0 && (
         <div className="row" style={{ justifyContent: 'flex-end' }}>
           <button className="primary" onClick={() => setView('stats')}>
             Analyze →
@@ -250,5 +255,89 @@ export function DataEntryView(): JSX.Element {
         </div>
       )}
     </>
+  )
+}
+
+/**
+ * Per-assessment event metadata, captured at data entry (not at authoring): the date the assessment
+ * was performed, who performed it, and the crop growth stage observed. Each field persists on commit
+ * via `assessments.saveMetadata`, which returns a fresh snapshot.
+ */
+function AssessmentMetadataPanel({
+  headers,
+  crop,
+  title
+}: {
+  headers: AssessmentHeader[]
+  crop: string
+  title: (h: AssessmentHeader) => string
+}): JSX.Element {
+  const { setSnapshot, run } = useStore()
+
+  const save = (h: AssessmentHeader, patch: Partial<AssessmentHeader>): void => {
+    run('Saving assessment details', async () => {
+      const s = await window.art.assessments.saveMetadata(h.id!, {
+        ratingDate: patch.ratingDate ?? h.ratingDate,
+        assessedBy: patch.assessedBy ?? h.assessedBy,
+        growthStage: patch.growthStage ?? h.growthStage
+      })
+      if (s) setSnapshot(s)
+    })
+  }
+
+  return (
+    <div className="card">
+      <h3 style={{ marginTop: 0 }}>Assessment details</h3>
+      <p className="muted">
+        Record when each assessment was performed, who performed it, and the crop growth stage
+        observed. These appear on the report alongside each assessment&rsquo;s results.
+      </p>
+      <table className="data">
+        <thead>
+          <tr>
+            <th>Assessment</th>
+            <th style={{ width: 150 }}>Date assessed</th>
+            <th style={{ width: 180 }}>Assessed by</th>
+            <th style={{ width: 180 }}>Growth stage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {headers.map((h) => (
+            <tr key={h.id}>
+              <td>{title(h)}</td>
+              <td>
+                <input
+                  type="date"
+                  defaultValue={h.ratingDate}
+                  onBlur={(e) => {
+                    if (e.target.value !== h.ratingDate) save(h, { ratingDate: e.target.value })
+                  }}
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  defaultValue={h.assessedBy}
+                  placeholder="Name / initials"
+                  onBlur={(e) => {
+                    if (e.target.value !== h.assessedBy) save(h, { assessedBy: e.target.value })
+                  }}
+                />
+              </td>
+              <td>
+                <Combobox
+                  category="growth_stage"
+                  crop={crop}
+                  value={h.growthStage}
+                  onChange={(v) => {
+                    if (v !== h.growthStage) save(h, { growthStage: v })
+                  }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

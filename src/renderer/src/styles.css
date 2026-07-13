@@ -373,6 +373,17 @@ table.data td.num {
   color: var(--muted);
 }
 
+/* Application record blocks (Site tab): actual date + conditions */
+.appl-record {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.property-list {
+  max-width: 560px;
+}
+
 /* Treatment program (expandable row + application-line sub-editor) */
 .expander {
   border: none;

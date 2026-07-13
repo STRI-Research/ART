@@ -5,6 +5,7 @@ import type {
   Treatment,
   Application,
   ApplicationActual,
+  Property,
   AssessmentDef,
   Trial,
   Plot,
@@ -19,6 +20,7 @@ import {
   extractApplications,
   extractAssessmentDefs,
   extractAssessmentHeaders,
+  extractProperties,
   dedupeTerms,
   type TermRef
 } from '../library/extract.js'
@@ -200,6 +202,37 @@ export function replaceApplicationActuals(
   tx(actuals)
 }
 
+// --- Properties (trial-side key/value metadata) -----------------------------
+export function listProperties(db: Database.Database = getDb()): Property[] {
+  const rows = db
+    .prepare(`SELECT * FROM property ORDER BY scope, scope_ref, id`)
+    .all() as Record<string, unknown>[]
+  return rows.map((r) => ({
+    id: r.id as number,
+    scope: r.scope as Property['scope'],
+    scopeRef: (r.scope_ref as string) ?? '',
+    key: r.key as string,
+    value: r.value as string
+  }))
+}
+
+/** Replace all properties for one scope+ref (leaving other scopes untouched). */
+export function replaceProperties(
+  scope: Property['scope'],
+  scopeRef: string,
+  props: Property[],
+  db: Database.Database = getDb()
+): void {
+  const tx = db.transaction((items: Property[]) => {
+    db.prepare('DELETE FROM property WHERE scope = ? AND scope_ref = ?').run(scope, scopeRef)
+    const ins = db.prepare(
+      `INSERT INTO property (scope, scope_ref, key, value) VALUES (@scope, @scopeRef, @key, @value)`
+    )
+    for (const p of items) if (p.key.trim()) ins.run({ scope, scopeRef, key: p.key, value: p.value })
+  })
+  tx(props)
+}
+
 // --- Assessment definitions (protocol-owned) --------------------------------
 export function listAssessmentDefs(db: Database.Database = getDb()): AssessmentDef[] {
   const rows = db
@@ -213,7 +246,6 @@ export function listAssessmentDefs(db: Database.Database = getDb()): AssessmentD
     applicationRef: (r.application_ref as string) ?? '',
     daysAfter: (r.days_after as number | null) ?? null,
     timing: r.timing as string,
-    ratingDate: r.rating_date as string,
     description: r.description as string,
     ordinal: r.ordinal as number,
     analyze: !!(r.analyze as number),
@@ -225,8 +257,8 @@ export function replaceAssessmentDefs(defs: AssessmentDef[], db: Database.Databa
   const tx = db.transaction((items: AssessmentDef[]) => {
     db.prepare('DELETE FROM assessment_def').run()
     const ins = db.prepare(
-      `INSERT INTO assessment_def (part_rated, rating_type, rating_unit, application_ref, days_after, timing, rating_date, description, ordinal, analyze, subsamples)
-       VALUES (@partRated, @ratingType, @ratingUnit, @applicationRef, @daysAfter, @timing, @ratingDate, @description, @ordinal, @analyze, @subsamples)`
+      `INSERT INTO assessment_def (part_rated, rating_type, rating_unit, application_ref, days_after, timing, description, ordinal, analyze, subsamples)
+       VALUES (@partRated, @ratingType, @ratingUnit, @applicationRef, @daysAfter, @timing, @description, @ordinal, @analyze, @subsamples)`
     )
     items.forEach((d, i) =>
       ins.run({
@@ -447,13 +479,16 @@ function mapHeaderRow(r: Record<string, unknown>): AssessmentHeader {
     applicationRef: (r.application_ref as string) ?? '',
     daysAfter: (r.days_after as number | null) ?? null,
     timing: r.timing as string,
-    ratingDate: r.rating_date as string,
     description: r.description as string,
     ordinal: r.ordinal as number,
     origin: r.origin as AssessmentHeader['origin'],
     locked: !!(r.locked as number),
     analyze: !!(r.analyze as number),
-    subsamples: (r.subsamples as number) ?? 1
+    subsamples: (r.subsamples as number) ?? 1,
+    // Event metadata (recorded at data entry):
+    ratingDate: (r.rating_date as string) ?? '',
+    assessedBy: (r.assessed_by as string) ?? '',
+    growthStage: (r.growth_stage as string) ?? ''
   }
 }
 
@@ -466,25 +501,43 @@ export function upsertAssessmentHeader(
     analyze: h.analyze === false ? 0 : 1,
     subsamples: h.subsamples ?? 1,
     applicationRef: h.applicationRef ?? '',
-    daysAfter: h.daysAfter ?? null
+    daysAfter: h.daysAfter ?? null,
+    ratingDate: h.ratingDate ?? '',
+    assessedBy: h.assessedBy ?? '',
+    growthStage: h.growthStage ?? ''
   }
   if (h.id) {
     db.prepare(
       `UPDATE assessment_header SET part_rated=@partRated, rating_type=@ratingType,
         rating_unit=@ratingUnit, application_ref=@applicationRef, days_after=@daysAfter,
-        timing=@timing, rating_date=@ratingDate,
-        description=@description, ordinal=@ordinal, origin=@origin, locked=@locked, analyze=@analyze,
-        subsamples=@subsamples WHERE id=@id`
+        timing=@timing, description=@description, ordinal=@ordinal, origin=@origin, locked=@locked,
+        analyze=@analyze, subsamples=@subsamples,
+        rating_date=@ratingDate, assessed_by=@assessedBy, growth_stage=@growthStage WHERE id=@id`
     ).run({ ...h, ...extra })
     return h.id
   }
   const info = db
     .prepare(
-      `INSERT INTO assessment_header (trial_id, part_rated, rating_type, rating_unit, application_ref, days_after, timing, rating_date, description, ordinal, origin, locked, analyze, subsamples)
-       VALUES (@trialId, @partRated, @ratingType, @ratingUnit, @applicationRef, @daysAfter, @timing, @ratingDate, @description, @ordinal, @origin, @locked, @analyze, @subsamples)`
+      `INSERT INTO assessment_header (trial_id, part_rated, rating_type, rating_unit, application_ref, days_after, timing, description, ordinal, origin, locked, analyze, subsamples, rating_date, assessed_by, growth_stage)
+       VALUES (@trialId, @partRated, @ratingType, @ratingUnit, @applicationRef, @daysAfter, @timing, @description, @ordinal, @origin, @locked, @analyze, @subsamples, @ratingDate, @assessedBy, @growthStage)`
     )
     .run({ ...h, origin: h.origin ?? 'site', ...extra })
   return info.lastInsertRowid as number
+}
+
+/**
+ * Update only the assessment *event* metadata (date performed, who, growth stage) on a header.
+ * Allowed on any trial header — including protocol-defined (core, locked) columns — because this is
+ * data collection, not editing the definition.
+ */
+export function updateAssessmentMetadata(
+  id: number,
+  meta: { ratingDate: string; assessedBy: string; growthStage: string },
+  db: Database.Database = getDb()
+): void {
+  db.prepare(
+    `UPDATE assessment_header SET rating_date=@ratingDate, assessed_by=@assessedBy, growth_stage=@growthStage WHERE id=@id`
+  ).run({ id, ...meta })
 }
 
 /** Look up a single header (used by guards to check origin before mutating). */
@@ -638,13 +691,16 @@ export function materializeCoreHeaders(trialId: number, db: Database.Database = 
         applicationRef: d.applicationRef,
         daysAfter: d.daysAfter,
         timing: d.timing,
-        ratingDate: d.ratingDate,
         description: d.description,
         ordinal: d.ordinal ?? i,
         origin: 'core',
         locked: true,
         analyze: d.analyze,
-        subsamples: d.subsamples ?? 1
+        subsamples: d.subsamples ?? 1,
+        // Event metadata (date / assessor / growth stage) is captured at data entry, not here.
+        ratingDate: '',
+        assessedBy: '',
+        growthStage: ''
       },
       db
     )
@@ -684,6 +740,7 @@ export function collectDocumentTerms(db: Database.Database = getDb()): TermRef[]
     ...extractTreatments(listTreatments(db)),
     ...extractApplications(listApplications(db)),
     ...extractAssessmentDefs(listAssessmentDefs(db)),
+    ...extractProperties(listProperties(db)),
     ...(trial ? extractAssessmentHeaders(listAssessmentHeaders(trial.id!, db)) : [])
   ]
   return dedupeTerms(refs)
@@ -704,6 +761,7 @@ export function snapshot(db: Database.Database = getDb()): ProjectSnapshot {
     assessmentHeaders: trial ? listAssessmentHeaders(trial.id!, db) : [],
     assessmentValues: trial ? listAssessmentValues(trial.id!, db) : [],
     applicationActuals: listApplicationActuals(db),
+    properties: listProperties(db),
     libraryTerms: listLibraryTerms(db)
   }
 }

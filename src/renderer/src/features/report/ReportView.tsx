@@ -12,6 +12,21 @@ function headerTitle(h: AssessmentHeader): string {
   return h.description || h.ratingType || `Assessment ${h.ordinal + 1}`
 }
 
+/** Event metadata recorded at data entry: when the assessment was performed, by whom, and the
+ *  crop growth stage observed. Renders only the fields that were filled in (nothing if none). */
+function AssessmentMeta({ h }: { h: AssessmentHeader }): JSX.Element | null {
+  const parts: string[] = []
+  if (h.ratingDate) parts.push(h.ratingDate)
+  if (h.growthStage) parts.push(`Growth stage ${h.growthStage}`)
+  if (h.assessedBy) parts.push(`by ${h.assessedBy}`)
+  if (parts.length === 0) return null
+  return (
+    <p className="muted" style={{ marginTop: 0 }}>
+      {parts.join(' · ')}
+    </p>
+  )
+}
+
 export function ReportView(): JSX.Element {
   const { snapshot, rEnv, aovResults, setAov, run } = useStore()
   const protocol = snapshot!.protocol
@@ -344,6 +359,7 @@ export function ReportView(): JSX.Element {
           result ? (
             <div className="card report-assessment" key={h.id}>
               <h2>{headerTitle(h)}</h2>
+              <AssessmentMeta h={h} />
               {(h.subsamples ?? 1) > 1 && (
                 <p className="muted" style={{ marginTop: 0 }}>
                   Each plot value is the mean of {h.subsamples} subsamples.

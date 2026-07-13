@@ -5,6 +5,8 @@ import type {
   Treatment,
   Application,
   ApplicationActual,
+  Property,
+  PropertyScope,
   AssessmentDef,
   AssessmentHeader,
   AssessmentValue,
@@ -48,6 +50,8 @@ const api = {
     lockLayout: (): Promise<ProjectSnapshot> => ipcRenderer.invoke(IPC.trialLockLayout),
     saveApplicationActuals: (list: ApplicationActual[]): Promise<ProjectSnapshot> =>
       ipcRenderer.invoke(IPC.applicationActualsSave, list),
+    saveProperties: (scope: PropertyScope, scopeRef: string, props: Property[]): Promise<ProjectSnapshot> =>
+      ipcRenderer.invoke(IPC.propertiesSave, { scope, scopeRef, props }),
     swapPlots: (a: number, b: number): Promise<ProjectSnapshot> =>
       ipcRenderer.invoke(IPC.plotSwap, a, b),
     movePlot: (plotId: number, mapRow: number, mapCol: number): Promise<ProjectSnapshot> =>
@@ -66,6 +70,10 @@ const api = {
       ipcRenderer.invoke(IPC.assessmentHeaderUpsert, h),
     deleteHeader: (id: number): Promise<AssessmentHeader[]> =>
       ipcRenderer.invoke(IPC.assessmentHeaderDelete, id),
+    saveMetadata: (
+      id: number,
+      meta: { ratingDate: string; assessedBy: string; growthStage: string }
+    ): Promise<ProjectSnapshot> => ipcRenderer.invoke(IPC.assessmentMetadataSave, { id, ...meta }),
     setValue: (v: AssessmentValue): Promise<boolean> =>
       ipcRenderer.invoke(IPC.assessmentValueSet, v)
   },

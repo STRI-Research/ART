@@ -10,16 +10,24 @@ statistics engine (via the [`agricolae`](https://cran.r-project.org/package=agri
 
 ## Features (MVP)
 
-- **Protocol editor** — trial metadata, treatment list, application timings.
+- **Protocol editor** — trial metadata, treatment programs (each treatment is an ordered sequence of
+  product/rate/timing application lines), and a planned application schedule (A/B/C timings with a
+  target growth stage) that assessments anchor to.
 - **Randomized trial generation** — Randomized Complete Block (RCB), Completely Randomized
   (CRD), and resolvable Incomplete Block (Alpha) designs, generated in R with
   `agricolae::design.rcbd` / `design.crd` / `design.alpha`. Alpha designs split each replicate
   into incomplete blocks of a chosen size k; the protocol editor validates the design live and
   blocks a non-conformant alpha layout before a trial is created and distributed.
 - **Trial map** — visual plot grid with "hot edit" (click two plots to swap treatments).
-- **Assessment setup & data entry** — define assessment columns (rating type, timing, subsamples)
-  on the Assessments tab, then record measurements on a dedicated Data Entry tab: a
-  spreadsheet-style grid (rows = plots, columns = assessments) with paste-from-clipboard support.
+- **Assessment setup & data entry** — define assessment columns (rating type, timing anchored to an
+  application + days-after, subsamples) on the Assessments tab, then record measurements on a
+  dedicated Data Entry tab: a spreadsheet-style grid (rows = plots, columns = assessments) with
+  paste-from-clipboard support. Each assessment also captures event metadata at data-entry time — the
+  date performed, who performed it, and the crop growth stage observed — kept separate from the
+  protocol definition and surfaced on the report alongside that assessment's results.
+- **Site details & application conditions** — a generic key/value property editor records ad-hoc
+  metadata (soil type, previous crop, weather at spraying, …) against the trial site or a specific
+  application, with keys accreting into the coded-field library rather than a fixed wall of columns.
 - **Statistics** — one-/two-way ANOVA plus mean-comparison tests (Fisher's LSD, Tukey's HSD,
   Duncan's MRT, Student-Newman-Keuls) at α = 0.01 / 0.05 / 0.10, with mean-separation letters,
   CV, grand mean, and critical values. Alpha designs use a block-adjusted analysis

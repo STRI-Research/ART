@@ -53,14 +53,17 @@ function HeaderManager({
         applicationRef: draft.applicationRef,
         daysAfter: draft.daysAfter,
         timing: draft.timing,
-        ratingDate: '',
         description:
           [draft.ratingType, draft.partRated, label].filter(Boolean).join(' ') || 'Assessment',
         ordinal: headers.length,
         origin: 'site',
         locked: false,
         analyze: draft.analyze,
-        subsamples: Math.max(1, draft.subsamples || 1)
+        subsamples: Math.max(1, draft.subsamples || 1),
+        // Event metadata (date / assessor / growth stage) is recorded later at data entry.
+        ratingDate: '',
+        assessedBy: '',
+        growthStage: ''
       })
       // Refetch so the new coded terms surface in library suggestions/labels.
       const s = await window.art.project.snapshot()

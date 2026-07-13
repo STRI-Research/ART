@@ -42,12 +42,17 @@ export const LibraryCategory = z.enum([
   'unit',
   'growth_stage',
   'treatment_type',
-  'timing'
+  'timing',
+  'property_key'
 ])
 export type LibraryCategory = z.infer<typeof LibraryCategory>
 
 /** Vocabularies that apply to every crop (no per-crop scoping/ranking). All others vary by crop. */
-export const GENERAL_CATEGORIES: ReadonlySet<LibraryCategory> = new Set<LibraryCategory>(['crop', 'unit'])
+export const GENERAL_CATEGORIES: ReadonlySet<LibraryCategory> = new Set<LibraryCategory>([
+  'crop',
+  'unit',
+  'property_key'
+])
 
 /** Whether a category's terms are scoped/ranked by crop (e.g. rating types), vs. general (crop, unit). */
 export function isCropScoped(category: LibraryCategory): boolean {
@@ -62,7 +67,8 @@ export const LIBRARY_CATEGORY_LABELS: Record<LibraryCategory, string> = {
   unit: 'Units',
   growth_stage: 'Growth stages',
   treatment_type: 'Treatment types',
-  timing: 'Timings'
+  timing: 'Timings',
+  property_key: 'Property keys'
 }
 
 /** A term embedded in a project (the travelling snapshot) or referenced generally. */
@@ -175,6 +181,25 @@ export const ApplicationActual = z.object({
 })
 export type ApplicationActual = z.infer<typeof ApplicationActual>
 
+/**
+ * A trial-side key/value property — the generic mechanism for ad-hoc metadata that avoids a wall of
+ * dedicated columns (see docs/DESIGN-PRINCIPLES.md). Scope picks what it describes:
+ *  - `trial` → additional site details (soil, previous crop, variety…), `scopeRef` = ''
+ *  - `application` → conditions an application was made under, `scopeRef` = the application timing code
+ * Keys come from the `property_key` library; consumed by the printed documents.
+ */
+export const PropertyScope = z.enum(['trial', 'application'])
+export type PropertyScope = z.infer<typeof PropertyScope>
+
+export const Property = z.object({
+  id: z.number().int().optional(),
+  scope: PropertyScope,
+  scopeRef: z.string().default(''),
+  key: z.string().default(''),
+  value: z.string().default('')
+})
+export type Property = z.infer<typeof Property>
+
 // ---------------------------------------------------------------------------
 // Trial + layout
 // ---------------------------------------------------------------------------
@@ -232,7 +257,6 @@ export const AssessmentDef = z.object({
   daysAfter: z.number().int().nullable().default(null),
   /** Free-text timing override; when set it wins over the derived "N DA-<code>" label. */
   timing: z.string().default(''),
-  ratingDate: z.string().default(''),
   description: z.string().default(''),
   ordinal: z.number().int().default(0),
   /** Whether this assessment is included in ANOVA and the report. */
@@ -242,10 +266,21 @@ export const AssessmentDef = z.object({
 })
 export type AssessmentDef = z.infer<typeof AssessmentDef>
 
+/**
+ * A trial's assessment column: the definition plus **event metadata** recorded when the assessment
+ * is actually performed (at data entry, not at authoring): the date, who assessed, and the crop
+ * growth stage observed.
+ */
 export const AssessmentHeader = AssessmentDef.extend({
   trialId: z.number().int(),
   origin: AssessmentOrigin.default('site'),
-  locked: z.boolean().default(false)
+  locked: z.boolean().default(false),
+  /** Date the assessment was performed (ISO). */
+  ratingDate: z.string().default(''),
+  /** Who performed the assessment. */
+  assessedBy: z.string().default(''),
+  /** Crop growth stage observed at this assessment (from the growth_stage library). */
+  growthStage: z.string().default('')
 })
 export type AssessmentHeader = z.infer<typeof AssessmentHeader>
 
@@ -367,6 +402,8 @@ export interface ProjectSnapshot {
   assessmentValues: AssessmentValue[]
   /** Trial-side actual application dates (empty for a protocol document). */
   applicationActuals: ApplicationActual[]
+  /** Trial-side key/value properties (site details + application conditions). */
+  properties: Property[]
   /** Snapshot of the coded terms this document references (travels into trials). */
   libraryTerms: LibraryTerm[]
 }

@@ -385,7 +385,6 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
         applicationRef: draft.applicationRef,
         daysAfter: draft.daysAfter,
         timing: draft.timing,
-        ratingDate: '',
         description:
           [draft.ratingType, draft.partRated, label].filter(Boolean).join(' ') || 'Assessment',
         ordinal: defs.length,

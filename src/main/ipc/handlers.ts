@@ -6,6 +6,8 @@ import {
   Treatment,
   Application,
   ApplicationActual,
+  Property,
+  PropertyScope,
   AssessmentDef,
   AssessmentHeader,
   AssessmentValue,
@@ -355,6 +357,21 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return dao.snapshot()
   })
 
+  handle(IPC.propertiesSave, (input: unknown): ProjectSnapshot => {
+    assertRole('trial')
+    const { scope, scopeRef, props } = z
+      .object({ scope: PropertyScope, scopeRef: z.string().default(''), props: z.array(Property) })
+      .parse(input)
+    dao.replaceProperties(scope, scopeRef, props)
+    recordAudit('properties.save', 'property', `Updated ${scope} properties (${props.length})`, {
+      scope,
+      scopeRef,
+      props
+    })
+    syncLibrary() // record new property keys into the personal library
+    return dao.snapshot()
+  })
+
   handle(IPC.trialLockLayout, (): ProjectSnapshot => {
     assertRole('trial')
     const trial = dao.getTrial()
@@ -432,6 +449,29 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     syncLibrary()
     const trial = dao.getTrial()
     return trial ? dao.listAssessmentHeaders(trial.id!) : []
+  })
+
+  // Event metadata (date assessed / assessor / growth stage) is recorded at data entry,
+  // so it stays editable even after the assessment definition is locked.
+  handle(IPC.assessmentMetadataSave, (payload: unknown) => {
+    const { id, ratingDate, assessedBy, growthStage } = z
+      .object({
+        id: z.number().int(),
+        ratingDate: z.string(),
+        assessedBy: z.string(),
+        growthStage: z.string()
+      })
+      .parse(payload)
+    const before = dao.getAssessmentHeader(id)
+    dao.updateAssessmentMetadata(id, { ratingDate, assessedBy, growthStage })
+    recordAudit(
+      'assessment.metadata.edit',
+      'assessment_header',
+      `Recorded metadata for "${before?.description || before?.ratingType || id}"`,
+      { before: { ratingDate: before?.ratingDate, assessedBy: before?.assessedBy, growthStage: before?.growthStage }, after: { ratingDate, assessedBy, growthStage } }
+    )
+    syncLibrary()
+    return dao.snapshot()
   })
 
   handle(IPC.assessmentValueSet, (v: unknown) => {

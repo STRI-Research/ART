@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store'
+import { PropertyList } from '../../components/PropertyList'
 import type { SiteMetadata } from '@shared/types'
 
 const FIELDS: { key: keyof SiteMetadata; label: string; width?: number }[] = [
@@ -88,28 +89,50 @@ export function SiteView(): JSX.Element {
         </div>
       </div>
 
+      <div className="card">
+        <h2>Site Details</h2>
+        <p className="muted">
+          Additional details for this site (soil type, previous crop, variety…). These appear on the
+          printed trial documents. Anything free-form can also go in Trial notes above.
+        </p>
+        <PropertyList scope="trial" addLabel="+ Add detail" />
+      </div>
+
       {applications.length > 0 && (
         <div className="card">
-          <h2>Application Dates</h2>
+          <h2>Applications</h2>
           <p className="muted">
-            When each protocol application actually happened at this site. Assessment dates timed
-            &quot;N&nbsp;days after&quot; an application are derived from these.
+            When each protocol application actually happened at this site (assessment dates timed
+            &quot;N days after&quot; derive from these), and the conditions it was made under.
           </p>
-          <div className="row">
-            {applications.map((a) => (
-              <div key={a.id ?? a.timingCode} style={{ width: 190 }}>
-                <label>
-                  Application {a.timingCode}
-                  {a.targetGrowthStage ? ` · ${a.targetGrowthStage}` : ''}
-                </label>
-                <input
-                  type="date"
-                  value={actualDate(a.timingCode)}
-                  onChange={(e) => setActualDate(a.timingCode, e.target.value)}
+          {applications.map((a) => (
+            <div key={a.id ?? a.timingCode} className="appl-record">
+              <div className="row" style={{ alignItems: 'flex-end', gap: 12 }}>
+                <div style={{ width: 130 }}>
+                  <label>
+                    Application {a.timingCode}
+                    {a.targetGrowthStage ? ` · ${a.targetGrowthStage}` : ''}
+                  </label>
+                  <input
+                    type="date"
+                    value={actualDate(a.timingCode)}
+                    onChange={(e) => setActualDate(a.timingCode, e.target.value)}
+                  />
+                </div>
+                {a.description && <span className="muted">{a.description}</span>}
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
+                  Conditions
+                </div>
+                <PropertyList
+                  scope="application"
+                  scopeRef={a.timingCode}
+                  addLabel="+ Add condition"
                 />
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
 

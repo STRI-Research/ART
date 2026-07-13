@@ -90,6 +90,19 @@ CREATE TABLE IF NOT EXISTS application_actual (
   UNIQUE (timing_code)
 );
 
+-- Generic trial-side key/value metadata (the one mechanism that absorbs ad-hoc detail without a
+-- wall of columns — see docs/DESIGN-PRINCIPLES.md). scope='trial' → site details (scope_ref='');
+-- scope='application' → conditions for an application (scope_ref = the timing code). Keys come from
+-- the property_key library; consumed by the printed documents.
+CREATE TABLE IF NOT EXISTS property (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  scope     TEXT NOT NULL DEFAULT 'trial',
+  scope_ref TEXT NOT NULL DEFAULT '',
+  key       TEXT NOT NULL DEFAULT '',
+  value     TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_property_scope ON property(scope, scope_ref);
+
 -- Core assessment definitions authored in the protocol. In a trial file these are
 -- materialized into assessment_header (origin='core', locked=1) when the layout is
 -- generated, so operators can enter values but not edit/remove them.
@@ -101,7 +114,7 @@ CREATE TABLE IF NOT EXISTS assessment_def (
   application_ref TEXT NOT NULL DEFAULT '', -- anchored application's timing code ('' = unanchored)
   days_after  INTEGER,                      -- offset from the anchored application (NULL = unanchored)
   timing      TEXT NOT NULL DEFAULT '',     -- free-text timing override (wins over the derived label)
-  rating_date TEXT NOT NULL DEFAULT '',
+  rating_date TEXT NOT NULL DEFAULT '',     -- legacy (unused); assessment event date lives on the header
   description TEXT NOT NULL DEFAULT '',
   ordinal     INTEGER NOT NULL DEFAULT 0,
   analyze     INTEGER NOT NULL DEFAULT 1, -- include in ANOVA / report
@@ -154,13 +167,16 @@ CREATE TABLE IF NOT EXISTS assessment_header (
   application_ref TEXT NOT NULL DEFAULT '', -- anchored application's timing code ('' = unanchored)
   days_after  INTEGER,                      -- offset from the anchored application (NULL = unanchored)
   timing      TEXT NOT NULL DEFAULT '',     -- free-text timing override (wins over the derived label)
-  rating_date TEXT NOT NULL DEFAULT '',
   description TEXT NOT NULL DEFAULT '',
   ordinal     INTEGER NOT NULL DEFAULT 0,
   origin      TEXT NOT NULL DEFAULT 'site' CHECK (origin IN ('core', 'site')),
   locked      INTEGER NOT NULL DEFAULT 0,
   analyze     INTEGER NOT NULL DEFAULT 1, -- include in ANOVA / report
-  subsamples  INTEGER NOT NULL DEFAULT 1  -- measurements recorded per plot (>1 = averaged)
+  subsamples  INTEGER NOT NULL DEFAULT 1, -- measurements recorded per plot (>1 = averaged)
+  -- Event metadata, recorded at data entry (not authoring):
+  rating_date  TEXT NOT NULL DEFAULT '',   -- date the assessment was performed
+  assessed_by  TEXT NOT NULL DEFAULT '',   -- who performed it
+  growth_stage TEXT NOT NULL DEFAULT ''    -- crop growth stage observed
 );
 CREATE INDEX IF NOT EXISTS idx_header_trial ON assessment_header(trial_id);
 

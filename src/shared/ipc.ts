@@ -19,6 +19,7 @@ export const IPC = {
   trialGenerate: 'trial:generate',
   trialLockLayout: 'trial:lockLayout',
   applicationActualsSave: 'trial:applicationActuals:save',
+  propertiesSave: 'trial:properties:save',
   plotSwap: 'plot:swap',
   plotMove: 'plot:move',
   layoutReshape: 'layout:reshape',
@@ -28,6 +29,7 @@ export const IPC = {
   assessmentHeaderAddSite: 'assessment:header:addSite',
   assessmentHeaderUpsert: 'assessment:header:upsert',
   assessmentHeaderDelete: 'assessment:header:delete',
+  assessmentMetadataSave: 'assessment:metadata:save',
   assessmentValueSet: 'assessment:value:set',
 
   // Library (personal curated vocabulary)

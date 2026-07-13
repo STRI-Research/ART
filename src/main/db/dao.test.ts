@@ -97,7 +97,9 @@ describe('trial + plots + assessments', () => {
       applicationRef: '',
       daysAfter: null,
       timing: '14 DA-A',
+      growthStage: '',
       ratingDate: '',
+      assessedBy: '',
       description: 'Control',
       ordinal: 0,
       origin: 'core',
@@ -205,8 +207,8 @@ describe('trial + plots + assessments', () => {
 describe('assessment definitions', () => {
   it('replaces and lists protocol-owned assessment defs', () => {
     const defs: AssessmentDef[] = [
-      { partRated: 'PLANT', ratingType: 'CONTRO', ratingUnit: '%', applicationRef: '', daysAfter: null, timing: '7 DA-A', ratingDate: '', description: 'Control 7', ordinal: 0, analyze: true, subsamples: 5 },
-      { partRated: 'PLANT', ratingType: 'NOTE', ratingUnit: '', applicationRef: '', daysAfter: null, timing: '', ratingDate: '', description: 'Notes', ordinal: 1, analyze: false, subsamples: 1 }
+      { partRated: 'PLANT', ratingType: 'CONTRO', ratingUnit: '%', applicationRef: '', daysAfter: null, timing: '7 DA-A', description: 'Control 7', ordinal: 0, analyze: true, subsamples: 5 },
+      { partRated: 'PLANT', ratingType: 'NOTE', ratingUnit: '', applicationRef: '', daysAfter: null, timing: '', description: 'Notes', ordinal: 1, analyze: false, subsamples: 1 }
     ]
     dao.replaceAssessmentDefs(defs)
     const back = dao.listAssessmentDefs()
@@ -227,7 +229,7 @@ describe('protocol → trial', () => {
       [1, 2].map((n) => ({ number: n, name: `T${n}`, type: '', applications: [] }))
     )
     dao.replaceAssessmentDefs([
-      { partRated: 'PLANT', ratingType: 'CONTRO', ratingUnit: '%', applicationRef: '', daysAfter: null, timing: '14 DA-A', ratingDate: '', description: 'Control', ordinal: 0, analyze: false, subsamples: 4 }
+      { partRated: 'PLANT', ratingType: 'CONTRO', ratingUnit: '%', applicationRef: '', daysAfter: null, timing: '14 DA-A', description: 'Control', ordinal: 0, analyze: false, subsamples: 4 }
     ])
     const uid = dao.getProtocol().protocolUid
     closeProject()
@@ -287,7 +289,9 @@ describe('protocol → trial', () => {
       applicationRef: '',
       daysAfter: null,
       timing: '',
+      growthStage: '',
       ratingDate: '',
+      assessedBy: '',
       description: 'Site column',
       ordinal: 1,
       origin: 'site',

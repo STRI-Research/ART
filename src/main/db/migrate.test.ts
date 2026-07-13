@@ -39,7 +39,12 @@ describe('schema migration v3 → v4', () => {
     const cols = (t: string): string[] =>
       (getDb().prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((c) => c.name)
     expect(cols('application')).toContain('ordinal')
-    expect(cols('assessment_def')).toEqual(expect.arrayContaining(['application_ref', 'days_after']))
+    // v4 anchor columns land on the definition; growth stage is NOT a definition field — it's
+    // event metadata captured at data entry, so it lives only on the trial header (added in v5).
+    expect(cols('assessment_def')).toEqual(
+      expect.arrayContaining(['application_ref', 'days_after'])
+    )
+    expect(cols('assessment_def')).not.toContain('growth_stage')
 
     // Existing rows survive and read back through the DAO with defaults for the new fields.
     const apps = dao.listApplications()
@@ -49,7 +54,8 @@ describe('schema migration v3 → v4', () => {
     const defs = dao.listAssessmentDefs()
     expect(defs[0].applicationRef).toBe('')
     expect(defs[0].daysAfter).toBeNull()
-    // application_actual (new table) is now present.
+    // New tables (application_actual, property) are present.
     expect(dao.listApplicationActuals()).toEqual([])
+    expect(dao.listProperties()).toEqual([])
   })
 })

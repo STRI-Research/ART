@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import type { Role } from '@shared/types.js'
 import schemaSql from './schema.sql?raw'
 
-const SCHEMA_VERSION = 4
+const SCHEMA_VERSION = 5
 
 /**
  * Add a column to an existing table if it isn't already present. `CREATE TABLE IF NOT EXISTS`
@@ -44,6 +44,13 @@ function migrate(db: Database.Database): void {
       ensureColumn(db, t, 'application_ref', "application_ref TEXT NOT NULL DEFAULT ''")
       ensureColumn(db, t, 'days_after', 'days_after INTEGER')
     }
+  }
+  // v5: assessment event metadata recorded at data entry (on the trial header, not the definition):
+  // who assessed + crop growth stage observed (the date reuses the existing rating_date column).
+  // Plus the generic key/value property mechanism (new table via CREATE TABLE IF NOT EXISTS).
+  if (from < 5) {
+    ensureColumn(db, 'assessment_header', 'assessed_by', "assessed_by TEXT NOT NULL DEFAULT ''")
+    ensureColumn(db, 'assessment_header', 'growth_stage', "growth_stage TEXT NOT NULL DEFAULT ''")
   }
   db.prepare(
     `INSERT INTO meta (key, value) VALUES ('schema_version', ?)
