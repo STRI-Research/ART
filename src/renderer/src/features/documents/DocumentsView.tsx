@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useStore, type DocKind } from '../../store'
 import { PlotGrid, type ColourBy } from './PlotGrid'
 import { timingLabel, assessmentDate } from '@shared/timing'
@@ -13,6 +13,37 @@ const DOC_TITLE: Record<DocKind, string> = {
 }
 
 /**
+ * Common self-adhesive label stock. Each preset lays the labels out at their true physical size
+ * (mm) in the stock's column count, and drives a print-only `@page` size + margin so a straight
+ * print at 100% lands on the sheet. `font` tiers the label text to the label height.
+ */
+export interface LabelStock {
+  id: string
+  name: string
+  page: 'letter' | 'a4'
+  cols: number
+  /** Label width/height in mm. */
+  w: number
+  h: number
+  /** Column/row gaps in mm. */
+  gapX: number
+  gapY: number
+  /** Top/left page margin in mm (where the first label starts). */
+  marginTop: number
+  marginLeft: number
+  /** Base font size (px) for the label body, sized to the label height. */
+  font: number
+}
+
+const LABEL_STOCKS: LabelStock[] = [
+  { id: 'avery5163', name: 'Avery 5163 — 4×2″, 10/sheet (Letter)', page: 'letter', cols: 2, w: 101.6, h: 50.8, gapX: 4.9, gapY: 0, marginTop: 12.7, marginLeft: 4.2, font: 12 },
+  { id: 'avery5164', name: 'Avery 5164 — 4×3⅓″, 6/sheet (Letter)', page: 'letter', cols: 2, w: 101.6, h: 84.7, gapX: 4.9, gapY: 0, marginTop: 12.7, marginLeft: 4.2, font: 13 },
+  { id: 'avery5160', name: 'Avery 5160 — 2⅝×1″, 30/sheet (Letter)', page: 'letter', cols: 3, w: 66.7, h: 25.4, gapX: 3.0, gapY: 0, marginTop: 12.7, marginLeft: 4.8, font: 8 },
+  { id: 'averyL7165', name: 'Avery L7165 — 99.1×67.7 mm, 8/sheet (A4)', page: 'a4', cols: 2, w: 99.1, h: 67.7, gapX: 2.5, gapY: 0, marginTop: 13.0, marginLeft: 4.65, font: 13 },
+  { id: 'averyL7159', name: 'Avery L7159 — 63.5×33.9 mm, 24/sheet (A4)', page: 'a4', cols: 3, w: 63.5, h: 33.9, gapX: 2.5, gapY: 0, marginTop: 13.5, marginLeft: 7.2, font: 9 }
+]
+
+/**
  * Renders a single printable document, chosen from the top-level Print menu (not the workflow
  * sidebar — printing is a utility, not a step). The page shows one document with just its
  * print/export actions; there is no on-page document switcher.
@@ -20,12 +51,23 @@ const DOC_TITLE: Record<DocKind, string> = {
 export function DocumentsView(): JSX.Element {
   const { snapshot, docKind, run } = useStore()
   const [colourBy, setColourBy] = useState<ColourBy>('treatment')
-  const [labelSize, setLabelSize] = useState<'small' | 'large'>('small')
+  const [stockId, setStockId] = useState<string>(LABEL_STOCKS[0].id)
   const [prefilled, setPrefilled] = useState(false)
+  // Assessment columns hidden from the data sheet (by header id) — lets a wide sheet fit the page.
+  const [hidden, setHidden] = useState<Set<number>>(new Set())
 
   const protocol = snapshot!.protocol
   const trial = snapshot!.trial
   const isAlpha = protocol.design === 'ALPHA'
+  const stock = LABEL_STOCKS.find((s) => s.id === stockId) ?? LABEL_STOCKS[0]
+  const allHeaders = [...snapshot!.assessmentHeaders].sort((a, b) => a.ordinal - b.ordinal)
+  const toggleHidden = (id: number): void =>
+    setHidden((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const exportPdf = (): void => {
     run('Exporting PDF', async () => {
@@ -63,13 +105,13 @@ export function DocumentsView(): JSX.Element {
             )}
             {docKind === 'labels' && (
               <div className="row" style={{ gap: 6, alignItems: 'center' }}>
-                <label style={{ margin: 0 }}>Size</label>
-                <select
-                  value={labelSize}
-                  onChange={(e) => setLabelSize(e.target.value as 'small' | 'large')}
-                >
-                  <option value="small">Small (3-up)</option>
-                  <option value="large">Large (2-up)</option>
+                <label style={{ margin: 0 }}>Label stock</label>
+                <select value={stockId} onChange={(e) => setStockId(e.target.value)}>
+                  {LABEL_STOCKS.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             )}
@@ -91,11 +133,27 @@ export function DocumentsView(): JSX.Element {
             <button onClick={() => window.print()}>Print</button>
           </div>
         </div>
+
+        {docKind === 'datasheet' && allHeaders.length > 0 && (
+          <div className="row" style={{ marginTop: 10, gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <span className="muted" style={{ fontSize: 13 }}>Columns:</span>
+            {allHeaders.map((h) => (
+              <label key={h.id} className="checkbox-inline" style={{ margin: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={!hidden.has(h.id!)}
+                  onChange={() => toggleHidden(h.id!)}
+                />
+                {headerTitleOf(h)}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {docKind === 'fieldmap' && <FieldMapDoc colourBy={colourBy} />}
-      {docKind === 'labels' && <PlotLabelsDoc size={labelSize} />}
-      {docKind === 'datasheet' && <DataSheetDoc prefilled={prefilled} />}
+      {docKind === 'labels' && <PlotLabelsDoc stock={stock} />}
+      {docKind === 'datasheet' && <DataSheetDoc prefilled={prefilled} hidden={hidden} />}
       {docKind === 'spray' && <SprayRecordDoc />}
       {docKind === 'summary' && <SummaryDoc />}
     </>
@@ -324,8 +382,9 @@ const headerTitleOf = (h: AssessmentHeader): string =>
   h.description || h.ratingType || `Assessment ${h.ordinal + 1}`
 const subCountOf = (h: AssessmentHeader): number => Math.max(1, h.subsamples ?? 1)
 
-/** B3 — plots in field order × assessment columns, with blank cells for recording (or pre-filled). */
-function DataSheetDoc({ prefilled }: { prefilled: boolean }): JSX.Element {
+/** B3 — plots in field order × assessment columns, with blank cells for recording (or pre-filled).
+ *  `hidden` drops selected assessment columns so a wide sheet fits the page. */
+function DataSheetDoc({ prefilled, hidden }: { prefilled: boolean; hidden: Set<number> }): JSX.Element {
   const { snapshot } = useStore()
   const protocol = snapshot!.protocol
   const trial = snapshot!.trial!
@@ -338,7 +397,9 @@ function DataSheetDoc({ prefilled }: { prefilled: boolean }): JSX.Element {
     const t = treatment.get(id)
     return t ? `${t.number}. ${t.name || 'Trt ' + t.number}` : `#${id}`
   }
-  const headers = [...snapshot!.assessmentHeaders].sort((a, b) => a.ordinal - b.ordinal)
+  const headers = [...snapshot!.assessmentHeaders]
+    .sort((a, b) => a.ordinal - b.ordinal)
+    .filter((h) => !hidden.has(h.id!))
   const plots = [...snapshot!.plots].sort((a, b) => a.plotNumber - b.plotNumber)
 
   const valueMap = useMemo(() => {
@@ -431,8 +492,10 @@ function DataSheetDoc({ prefilled }: { prefilled: boolean }): JSX.Element {
   )
 }
 
-/** B2 — an N-up sheet of plot labels/signs (plot #, rep, treatment, trial). */
-function PlotLabelsDoc({ size }: { size: 'small' | 'large' }): JSX.Element {
+/** B2 — plot labels/signs laid out to a chosen self-adhesive label stock (plot #, rep, treatment,
+ *  trial). Labels render at their true physical size; a print-only @page matches the sheet so a
+ *  straight print at 100% aligns to the stock. */
+function PlotLabelsDoc({ stock }: { stock: LabelStock }): JSX.Element {
   const { snapshot } = useStore()
   const protocol = snapshot!.protocol
   const isAlpha = protocol.design === 'ALPHA'
@@ -442,13 +505,29 @@ function PlotLabelsDoc({ size }: { size: 'small' | 'large' }): JSX.Element {
   )
   const plots = [...snapshot!.plots].sort((a, b) => a.plotNumber - b.plotNumber)
 
+  // Physical layout from the stock preset; the label body font scales to the label height.
+  const gridStyle: CSSProperties = {
+    gridTemplateColumns: `repeat(${stock.cols}, ${stock.w}mm)`,
+    columnGap: `${stock.gapX}mm`,
+    rowGap: `${stock.gapY}mm`
+  }
+  const labelStyle: CSSProperties = {
+    width: `${stock.w}mm`,
+    height: `${stock.h}mm`,
+    fontSize: `${stock.font}px`
+  }
+
   return (
-    <div className="doc-page">
-      <div className={`label-grid ${size}`}>
+    <div className="doc-page labels-page">
+      {/* Print-only page geometry so the labels land on the physical sheet. */}
+      <style>{`@media print {
+        @page { size: ${stock.page === 'a4' ? 'A4' : 'letter'}; margin: ${stock.marginTop}mm ${stock.marginLeft}mm; }
+      }`}</style>
+      <div className="label-grid" style={gridStyle}>
         {plots.map((p) => {
           const t = treatment.get(p.treatmentId)
           return (
-            <div className="plot-label" key={p.id}>
+            <div className="plot-label" key={p.id} style={labelStyle}>
               <div className="pl-trial">{protocol.title || 'Trial'}</div>
               <div className="pl-plot">Plot {p.plotNumber}</div>
               <div className="pl-meta">

@@ -827,46 +827,45 @@ table.datasheet .entry-cell {
   min-width: 66px;
 }
 
-/* Plot label / sign sheet: an N-up grid of bordered labels. */
+/* Plot label / sign sheet: an N-up grid of bordered labels sized to physical stock (widths,
+   heights and gaps come from inline styles set by the chosen preset). */
 .label-grid {
   display: grid;
-  gap: 10px;
-}
-.label-grid.small {
-  grid-template-columns: repeat(3, 1fr);
-}
-.label-grid.large {
-  grid-template-columns: repeat(2, 1fr);
+  justify-content: start;
 }
 .plot-label {
-  border: 1.5px solid var(--text);
-  border-radius: 6px;
-  padding: 12px 14px;
+  border: 1px solid var(--text);
+  border-radius: 4px;
+  padding: 2mm 3mm;
+  overflow: hidden;
   break-inside: avoid;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  line-height: 1.15;
 }
 .plot-label .pl-trial {
-  font-size: 11px;
+  font-size: 0.8em;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .plot-label .pl-plot {
-  font-size: 26px;
+  font-size: 2em;
   font-weight: 700;
-  margin: 2px 0;
-}
-.label-grid.large .plot-label .pl-plot {
-  font-size: 34px;
 }
 .plot-label .pl-meta {
-  font-size: 12px;
+  font-size: 0.95em;
   color: var(--muted);
 }
 .plot-label .pl-trt {
-  font-size: 14px;
+  font-size: 1.05em;
   font-weight: 600;
-  margin-top: 4px;
 }
 
 /* Spray record: one self-contained block per application. */
