@@ -46,6 +46,14 @@ export function buildMenu(win: BrowserWindow): Menu {
       ]
     },
     {
+      label: 'Tools',
+      submenu: [
+        // Utility destinations live here (not the workflow sidebar); enabled when a document is open.
+        { id: 'nav-library', label: 'Library', enabled: false, click: send('view.library') },
+        { id: 'nav-audit', label: 'Audit', enabled: false, click: send('view.audit') }
+      ]
+    },
+    {
       label: 'Print',
       submenu: [
         // Printable documents are a utility (not a workflow step), reached from this top-level menu.
@@ -53,14 +61,6 @@ export function buildMenu(win: BrowserWindow): Menu {
         { id: 'print-fieldmap', label: 'Field Map', enabled: false, click: send('print.fieldmap') },
         { id: 'print-summary', label: 'Trial Summary', enabled: false, click: send('print.summary') },
         { id: 'print-report', label: 'Report', enabled: false, click: send('print.report') }
-      ]
-    },
-    {
-      label: 'Tools',
-      submenu: [
-        // Utility destinations live here (not the workflow sidebar); enabled when a document is open.
-        { id: 'nav-library', label: 'Library', enabled: false, click: send('view.library') },
-        { id: 'nav-audit', label: 'Audit', enabled: false, click: send('view.audit') }
       ]
     },
     {
