@@ -31,8 +31,8 @@ const NAV: Record<Role, NavItem[]> = {
   trial: [
     { id: 'protocol', label: 'Protocol (locked)' },
     { id: 'site', label: 'Site', step: 1 },
-    { id: 'applications', label: 'Applications', step: 2 },
-    { id: 'trialmap', label: 'Trial Map', step: 3 },
+    { id: 'trialmap', label: 'Trial Map', step: 2 },
+    { id: 'applications', label: 'Applications', step: 3 },
     { id: 'measurements', label: 'Measurements', step: 4, needsLock: true },
     { id: 'dataentry', label: 'Enter Data', step: 5, needsLock: true },
     { id: 'stats', label: 'Statistics', step: 6, needsLock: true },
