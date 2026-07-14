@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../../store'
-import type { AssessmentHeader, MeanComparisonTest, AlphaLevel } from '@shared/types'
+import type { MeasurementHeader, MeanComparisonTest, AlphaLevel } from '@shared/types'
 import { buildObservations } from '../stats/buildData'
 import { MeansTable } from '../stats/MeansTable'
 import { AnovaTable } from '../stats/AnovaTable'
@@ -8,15 +8,15 @@ import { TESTS } from '../stats/StatsView'
 
 const MIN_OBS = 3 // ANOVA needs at least a few observations to be meaningful
 
-function headerTitle(h: AssessmentHeader): string {
-  return h.description || h.ratingType || `Assessment ${h.ordinal + 1}`
+function headerTitle(h: MeasurementHeader): string {
+  return h.description || h.measurementType || `Measurement ${h.ordinal + 1}`
 }
 
-/** Event metadata recorded at data entry: when the assessment was performed, by whom, and the
+/** Event metadata recorded at data entry: when the measurement was performed, by whom, and the
  *  crop growth stage observed. Renders only the fields that were filled in (nothing if none). */
-function AssessmentMeta({ h }: { h: AssessmentHeader }): JSX.Element | null {
+function MeasurementMeta({ h }: { h: MeasurementHeader }): JSX.Element | null {
   const parts: string[] = []
-  if (h.ratingDate) parts.push(h.ratingDate)
+  if (h.measurementDate) parts.push(h.measurementDate)
   if (h.growthStage) parts.push(`Growth stage ${h.growthStage}`)
   if (h.assessedBy) parts.push(`by ${h.assessedBy}`)
   if (parts.length === 0) return null
@@ -42,8 +42,8 @@ export function ReportView(): JSX.Element {
 
   const rReady = !!(rEnv?.rscriptFound && rEnv?.agricolaeInstalled)
 
-  const analyzed = snapshot!.assessmentHeaders.filter((h) => h.analyze)
-  const excluded = snapshot!.assessmentHeaders.filter((h) => !h.analyze)
+  const analyzed = snapshot!.measurementHeaders.filter((h) => h.analyze)
+  const excluded = snapshot!.measurementHeaders.filter((h) => !h.analyze)
 
   const obsByHeader = useMemo(() => {
     const m = new Map<number, ReturnType<typeof buildObservations>>()
@@ -51,7 +51,7 @@ export function ReportView(): JSX.Element {
     return m
   }, [snapshot, analyzed])
 
-  // Auto-run: analyze every eligible assessment on open and when test/alpha change.
+  // Auto-run: analyze every eligible measurement on open and when test/alpha change.
   const runKey = `${snapshot!.filePath}|${test}|${alpha}`
   const ranFor = useRef<string>('')
   useEffect(() => {
@@ -59,7 +59,7 @@ export function ReportView(): JSX.Element {
     const eligible = analyzed.filter((h) => (obsByHeader.get(h.id!)?.length ?? 0) >= MIN_OBS)
     ranFor.current = runKey
     if (eligible.length === 0) return
-    run('Analyzing all assessments', async () => {
+    run('Analyzing all measurements', async () => {
       for (const h of eligible) {
         try {
           const result = await window.art.stats.runAov(h.id!, {
@@ -71,7 +71,7 @@ export function ReportView(): JSX.Element {
           })
           setAov(h.id!, result)
         } catch (e) {
-          // Don't let one problematic assessment abort the whole report.
+          // Don't let one problematic measurement abort the whole report.
           setAov(h.id!, {
             anova: [],
             means: [],
@@ -101,7 +101,7 @@ export function ReportView(): JSX.Element {
 
   const exportCsv = (): void => {
     const rows: (string | number)[][] = [
-      ['assessment', 'treatment_number', 'treatment_name', 'mean', 'group', 'n', 'std']
+      ['measurement', 'treatment_number', 'treatment_name', 'mean', 'group', 'n', 'std']
     ]
     for (const { h, result } of overview) {
       if (!result) continue
@@ -299,15 +299,15 @@ export function ReportView(): JSX.Element {
 
         {analyzed.length === 0 ? (
           <div className="card">
-            <p className="muted">No assessments are marked for analysis.</p>
+            <p className="muted">No measurements are marked for analysis.</p>
           </div>
         ) : (
           <div className="card">
-            <h2>Overview — Treatment Effect by Assessment</h2>
+            <h2>Overview — Treatment Effect by Measurement</h2>
             <table className="data">
               <thead>
                 <tr>
-                  <th>Assessment</th>
+                  <th>Measurement</th>
                   <th className="num">n</th>
                   <th className="num">Grand mean</th>
                   <th className="num">CV %</th>
@@ -357,9 +357,9 @@ export function ReportView(): JSX.Element {
 
         {overview.map(({ h, result }) =>
           result ? (
-            <div className="card report-assessment" key={h.id}>
+            <div className="card report-measurement" key={h.id}>
               <h2>{headerTitle(h)}</h2>
-              <AssessmentMeta h={h} />
+              <MeasurementMeta h={h} />
               {(h.subsamples ?? 1) > 1 && (
                 <p className="muted" style={{ marginTop: 0 }}>
                   Each plot value is the mean of {h.subsamples} subsamples.

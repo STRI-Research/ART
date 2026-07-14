@@ -14,8 +14,8 @@ export const TESTS: { id: MeanComparisonTest; label: string }[] = [
 
 export function StatsView(): JSX.Element {
   const { snapshot, rEnv, aovResults, setAov, setView, run } = useStore()
-  // Only assessments flagged for analysis are eligible.
-  const headers = snapshot!.assessmentHeaders.filter((h) => h.analyze)
+  // Only measurements flagged for analysis are eligible.
+  const headers = snapshot!.measurementHeaders.filter((h) => h.analyze)
   const [headerId, setHeaderId] = useState<number | null>(headers[0]?.id ?? null)
   const [test, setTest] = useState<MeanComparisonTest>('LSD')
   const [alpha, setAlpha] = useState<AlphaLevel>(0.05)
@@ -54,18 +54,18 @@ export function StatsView(): JSX.Element {
           <p className="muted">The statistics engine (R) is not ready — see the notice above.</p>
         )}
         {headers.length === 0 ? (
-          <p className="muted">Define an assessment column and enter data first.</p>
+          <p className="muted">Define an measurement column and enter data first.</p>
         ) : (
           <div className="row">
             <div style={{ minWidth: 220 }}>
-              <label>Assessment</label>
+              <label>Measurement</label>
               <select
                 value={headerId ?? ''}
                 onChange={(e) => setHeaderId(Number(e.target.value))}
               >
                 {headers.map((h) => (
                   <option key={h.id} value={h.id}>
-                    {h.description || h.ratingType || `Assessment ${h.ordinal + 1}`}
+                    {h.description || h.measurementType || `Measurement ${h.ordinal + 1}`}
                   </option>
                 ))}
               </select>

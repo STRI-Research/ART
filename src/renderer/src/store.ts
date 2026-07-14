@@ -4,8 +4,9 @@ import type { ProjectSnapshot, REnvStatus, AovResult } from '@shared/types'
 export type ViewId =
   | 'protocol'
   | 'site'
+  | 'applications'
   | 'trialmap'
-  | 'assessments'
+  | 'measurements'
   | 'dataentry'
   | 'stats'
   | 'report'
@@ -31,7 +32,7 @@ interface AppState {
   saved: boolean
   /** Whether the left navigation sidebar is shown. Persisted across sessions. */
   sidebarOpen: boolean
-  /** ANOVA results keyed by assessment header id, shared by Stats and Report. */
+  /** ANOVA results keyed by measurement header id, shared by Stats and Report. */
   aovResults: Record<number, AovResult>
 
   /** The printable document currently selected for the Documents view. */
@@ -42,7 +43,7 @@ interface AppState {
   docColourBy: DocColourBy
   docStockId: string
   docPrefilled: boolean
-  /** Assessment header ids hidden from the data sheet. */
+  /** Measurement header ids hidden from the data sheet. */
   docHiddenCols: number[]
 
   toggleSidebar: () => void

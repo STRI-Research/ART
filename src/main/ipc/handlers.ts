@@ -8,9 +8,9 @@ import {
   ApplicationActual,
   Property,
   PropertyScope,
-  AssessmentDef,
-  AssessmentHeader,
-  AssessmentValue,
+  MeasurementDef,
+  MeasurementHeader,
+  MeasurementValue,
   AovRequest,
   SiteMetadata,
   type ProjectSnapshot,
@@ -63,9 +63,9 @@ function syncLibrary(): void {
   }
 }
 
-// The design/replicates/plot-dimensions come from the (locked) protocol; a trial
-// only chooses its own randomization seed and records its site metadata.
-const GenerateTrialInput = SiteMetadata.partial().extend({
+// The design/replicates/plot-dimensions come from the (locked) protocol; a trial only chooses its
+// own randomization seed. Site metadata is saved separately (Site view), not here.
+const GenerateTrialInput = z.object({
   seed: z.number().int().optional()
 })
 
@@ -150,17 +150,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return dao.listApplications()
   })
 
-  handle(IPC.assessmentDefSave, (list: unknown) => {
+  handle(IPC.measurementDefSave, (list: unknown) => {
     assertProtocolEditable()
-    const defs = z.array(AssessmentDef).parse(list)
-    const before = dao.listAssessmentDefs()
-    dao.replaceAssessmentDefs(defs)
-    recordAudit('assessment.def.replace', 'assessment_def', `Updated core assessments (${defs.length})`, {
+    const defs = z.array(MeasurementDef).parse(list)
+    const before = dao.listMeasurementDefs()
+    dao.replaceMeasurementDefs(defs)
+    recordAudit('measurement.def.replace', 'measurement_def', `Updated core measurements (${defs.length})`, {
       before,
-      after: dao.listAssessmentDefs()
+      after: dao.listMeasurementDefs()
     })
     syncLibrary()
-    return dao.listAssessmentDefs()
+    return dao.listMeasurementDefs()
   })
 
   // --- Trial (created from a protocol) ---
@@ -238,7 +238,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     assertLayoutUnlocked()
     const cfg = GenerateTrialInput.parse(input)
     const protocol = dao.getProtocol()
-    const replaced = !!dao.getTrial()
+    const existingTrial = dao.getTrial()
+    // A prior *layout* existed (not merely the up-front trial row) if plots are already present.
+    const replaced = !!existingTrial && dao.listPlots(existingTrial.id!).length > 0
     const treatments = dao.listTreatments()
     // Final backstop for design conformance (the same check runs at authoring + trial creation).
     const conformance = validateDesign(
@@ -279,10 +281,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       }
     })
 
-    const site = SiteMetadata.parse(cfg)
+    // Preserve any site metadata already entered on the trial row across (re)generation.
+    const site = SiteMetadata.parse(existingTrial ?? {})
     const trial: Omit<Trial, 'id' | 'layoutLockedAt'> = { protocolId: 1, plotRows, plotCols, seed, ...site }
     const trialId = dao.replaceTrialWithPlots(trial, plots)
-    // Re-materialize the protocol's core assessment columns onto the fresh trial.
+    // Re-materialize the protocol's core measurement columns onto the fresh trial.
     dao.materializeCoreHeaders(trialId)
     const blockNote = protocol.design === 'ALPHA' ? `, block size ${protocol.blockSize}` : ''
     recordAudit(
@@ -298,6 +301,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
         replaced
       }
     )
+    return dao.snapshot()
+  })
+
+  // Site metadata is saved independently of randomization (the trial row exists up front).
+  handle(IPC.trialSaveSite, (input: unknown): ProjectSnapshot => {
+    assertRole('trial')
+    const site = SiteMetadata.parse(input)
+    dao.updateTrialSite(site)
+    recordAudit('trial.site.edit', 'trial', 'Updated site information', { site })
     return dao.snapshot()
   })
 
@@ -401,95 +413,95 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return dao.snapshot()
   })
 
-  // --- Assessments ---
+  // --- Measurements ---
   // Add a site-specific column to a trial (forced origin='site', unlocked).
-  handle(IPC.assessmentHeaderAddSite, (h: unknown) => {
+  handle(IPC.measurementHeaderAddSite, (h: unknown) => {
     assertRole('trial')
-    const header = AssessmentHeader.parse(h)
-    dao.upsertAssessmentHeader({ ...header, id: undefined, origin: 'site', locked: false })
+    const header = MeasurementHeader.parse(h)
+    dao.upsertMeasurementHeader({ ...header, id: undefined, origin: 'site', locked: false })
     recordAudit(
-      'assessment.header.add',
-      'assessment_header',
-      `Added site assessment "${header.description || header.ratingType || 'assessment'}"`,
+      'measurement.header.add',
+      'measurement_header',
+      `Added site measurement "${header.description || header.measurementType || 'measurement'}"`,
       { header }
     )
     syncLibrary()
     const trial = dao.getTrial()
-    return trial ? dao.listAssessmentHeaders(trial.id!) : []
+    return trial ? dao.listMeasurementHeaders(trial.id!) : []
   })
 
-  handle(IPC.assessmentHeaderUpsert, (h: unknown) => {
-    const header = AssessmentHeader.parse(h)
+  handle(IPC.measurementHeaderUpsert, (h: unknown) => {
+    const header = MeasurementHeader.parse(h)
     if (header.id) assertHeaderEditable(header.id)
-    const before = header.id ? dao.getAssessmentHeader(header.id) : null
-    dao.upsertAssessmentHeader(header)
-    const label = header.description || header.ratingType || 'assessment'
+    const before = header.id ? dao.getMeasurementHeader(header.id) : null
+    dao.upsertMeasurementHeader(header)
+    const label = header.description || header.measurementType || 'measurement'
     recordAudit(
-      'assessment.header.edit',
-      'assessment_header',
-      before ? `Edited assessment "${label}"` : `Added assessment "${label}"`,
+      'measurement.header.edit',
+      'measurement_header',
+      before ? `Edited measurement "${label}"` : `Added measurement "${label}"`,
       { before, after: header }
     )
     syncLibrary()
     const trial = dao.getTrial()
-    return trial ? dao.listAssessmentHeaders(trial.id!) : []
+    return trial ? dao.listMeasurementHeaders(trial.id!) : []
   })
 
-  handle(IPC.assessmentHeaderDelete, (id: unknown) => {
+  handle(IPC.measurementHeaderDelete, (id: unknown) => {
     const headerId = z.number().int().parse(id)
     assertHeaderEditable(headerId)
-    const before = dao.getAssessmentHeader(headerId)
-    dao.deleteAssessmentHeader(headerId)
+    const before = dao.getMeasurementHeader(headerId)
+    dao.deleteMeasurementHeader(headerId)
     recordAudit(
-      'assessment.header.delete',
-      'assessment_header',
-      `Deleted assessment "${before?.description || before?.ratingType || headerId}"`,
+      'measurement.header.delete',
+      'measurement_header',
+      `Deleted measurement "${before?.description || before?.measurementType || headerId}"`,
       { before }
     )
     syncLibrary()
     const trial = dao.getTrial()
-    return trial ? dao.listAssessmentHeaders(trial.id!) : []
+    return trial ? dao.listMeasurementHeaders(trial.id!) : []
   })
 
   // Event metadata (date assessed / assessor / growth stage) is recorded at data entry,
-  // so it stays editable even after the assessment definition is locked.
-  handle(IPC.assessmentMetadataSave, (payload: unknown) => {
-    const { id, ratingDate, assessedBy, growthStage } = z
+  // so it stays editable even after the measurement definition is locked.
+  handle(IPC.measurementMetadataSave, (payload: unknown) => {
+    const { id, measurementDate, assessedBy, growthStage } = z
       .object({
         id: z.number().int(),
-        ratingDate: z.string(),
+        measurementDate: z.string(),
         assessedBy: z.string(),
         growthStage: z.string()
       })
       .parse(payload)
-    const before = dao.getAssessmentHeader(id)
-    dao.updateAssessmentMetadata(id, { ratingDate, assessedBy, growthStage })
+    const before = dao.getMeasurementHeader(id)
+    dao.updateMeasurementMetadata(id, { measurementDate, assessedBy, growthStage })
     recordAudit(
-      'assessment.metadata.edit',
-      'assessment_header',
-      `Recorded metadata for "${before?.description || before?.ratingType || id}"`,
-      { before: { ratingDate: before?.ratingDate, assessedBy: before?.assessedBy, growthStage: before?.growthStage }, after: { ratingDate, assessedBy, growthStage } }
+      'measurement.metadata.edit',
+      'measurement_header',
+      `Recorded metadata for "${before?.description || before?.measurementType || id}"`,
+      { before: { measurementDate: before?.measurementDate, assessedBy: before?.assessedBy, growthStage: before?.growthStage }, after: { measurementDate, assessedBy, growthStage } }
     )
     syncLibrary()
     return dao.snapshot()
   })
 
-  handle(IPC.assessmentValueSet, (v: unknown) => {
+  handle(IPC.measurementValueSet, (v: unknown) => {
     assertLayoutLocked()
-    const val = AssessmentValue.parse(v)
+    const val = MeasurementValue.parse(v)
     const newVal = val.value === null || Number.isNaN(val.value) ? null : val.value
-    const old = dao.getAssessmentValue(val.assessmentHeaderId, val.plotId, val.subsample)
-    dao.setAssessmentValue(val)
+    const old = dao.getMeasurementValue(val.measurementHeaderId, val.plotId, val.subsample)
+    dao.setMeasurementValue(val)
     if (old !== newVal) {
       const plot = dao.getPlot(val.plotId)
-      const header = dao.getAssessmentHeader(val.assessmentHeaderId)
+      const header = dao.getMeasurementHeader(val.measurementHeaderId)
       const fmt = (x: number | null): string => (x === null ? '(empty)' : String(x))
       const sub = (header?.subsamples ?? 1) > 1 ? ` [sub ${val.subsample}]` : ''
       recordAudit(
-        'assessment.value.set',
-        'assessment_value',
-        `Plot #${plot?.plotNumber ?? '?'} · ${header?.description || 'assessment'}${sub} · ${fmt(old)} → ${fmt(newVal)}`,
-        { plotId: val.plotId, headerId: val.assessmentHeaderId, subsample: val.subsample, old, new: newVal }
+        'measurement.value.set',
+        'measurement_value',
+        `Plot #${plot?.plotNumber ?? '?'} · ${header?.description || 'measurement'}${sub} · ${fmt(old)} → ${fmt(newVal)}`,
+        { plotId: val.plotId, headerId: val.measurementHeaderId, subsample: val.subsample, old, new: newVal }
       )
     }
     return true
@@ -498,15 +510,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   // --- Statistics ---
   handle(IPC.statsRunAov, async (headerId: unknown, req: unknown) => {
     assertLayoutLocked()
-    const assessmentHeaderId = z.number().int().parse(headerId)
+    const measurementHeaderId = z.number().int().parse(headerId)
     const aovReq = AovRequest.parse(req)
     const result = await runAov(aovReq)
-    dao.saveAnalysisResult(assessmentHeaderId, ENGINE_VERSION, aovReq, result)
-    const header = dao.getAssessmentHeader(assessmentHeaderId)
+    dao.saveAnalysisResult(measurementHeaderId, ENGINE_VERSION, aovReq, result)
+    const header = dao.getMeasurementHeader(measurementHeaderId)
     recordAudit(
       'analysis.run',
       'analysis_result',
-      `Ran ANOVA on "${header?.description || assessmentHeaderId}" (${aovReq.test}, α=${aovReq.alpha}) — ${result.significant ? 'significant' : 'not significant'}`,
+      `Ran ANOVA on "${header?.description || measurementHeaderId}" (${aovReq.test}, α=${aovReq.alpha}) — ${result.significant ? 'significant' : 'not significant'}`,
       { test: aovReq.test, alpha: aovReq.alpha, significant: result.significant }
     )
     return result

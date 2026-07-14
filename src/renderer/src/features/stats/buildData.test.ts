@@ -13,9 +13,9 @@ function snap(): ProjectSnapshot {
       { id: 10, number: 1, name: 'A', product: '', rate: '', rateUnit: '', type: '' },
       { id: 11, number: 2, name: 'B', product: '', rate: '', rateUnit: '', type: '' }
     ],
-    assessmentValues: [
-      { assessmentHeaderId: 5, plotId: 1, subsample: 1, value: 3 },
-      { assessmentHeaderId: 5, plotId: 2, subsample: 1, value: 9 }
+    measurementValues: [
+      { measurementHeaderId: 5, plotId: 1, subsample: 1, value: 3 },
+      { measurementHeaderId: 5, plotId: 2, subsample: 1, value: 9 }
     ]
   } as unknown as ProjectSnapshot
 }
@@ -37,12 +37,12 @@ describe('buildObservations', () => {
         { id: 10, number: 1, name: 'A', product: '', rate: '', rateUnit: '', type: '' },
         { id: 11, number: 2, name: 'B', product: '', rate: '', rateUnit: '', type: '' }
       ],
-      assessmentValues: [
-        { assessmentHeaderId: 5, plotId: 1, subsample: 1, value: 2 },
-        { assessmentHeaderId: 5, plotId: 1, subsample: 2, value: 4 },
-        { assessmentHeaderId: 5, plotId: 1, subsample: 3, value: null }, // nulls ignored
-        { assessmentHeaderId: 5, plotId: 2, subsample: 1, value: 10 },
-        { assessmentHeaderId: 5, plotId: 2, subsample: 2, value: 20 }
+      measurementValues: [
+        { measurementHeaderId: 5, plotId: 1, subsample: 1, value: 2 },
+        { measurementHeaderId: 5, plotId: 1, subsample: 2, value: 4 },
+        { measurementHeaderId: 5, plotId: 1, subsample: 3, value: null }, // nulls ignored
+        { measurementHeaderId: 5, plotId: 2, subsample: 1, value: 10 },
+        { measurementHeaderId: 5, plotId: 2, subsample: 2, value: 20 }
       ]
     } as unknown as ProjectSnapshot
     const obs = buildObservations(s, 5)

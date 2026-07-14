@@ -1,8 +1,8 @@
 import { Fragment, useMemo, type CSSProperties } from 'react'
 import { useStore, type DocKind, type DocColourBy } from '../../store'
 import { PlotGrid } from './PlotGrid'
-import { timingLabel, assessmentDate } from '@shared/timing'
-import type { AssessmentHeader, Property, PrintProfile } from '@shared/types'
+import { timingLabel, measurementDate } from '@shared/timing'
+import type { MeasurementHeader, Property, PrintProfile } from '@shared/types'
 
 const DOC_TITLE: Record<DocKind, string> = {
   fieldmap: 'Field Map',
@@ -106,7 +106,7 @@ export function DocumentsView(): JSX.Element {
   const trial = snapshot!.trial
   const isAlpha = protocol.design === 'ALPHA'
   const stock = LABEL_STOCKS.find((s) => s.id === docStockId) ?? LABEL_STOCKS[0]
-  const allHeaders = [...snapshot!.assessmentHeaders].sort((a, b) => a.ordinal - b.ordinal)
+  const allHeaders = [...snapshot!.measurementHeaders].sort((a, b) => a.ordinal - b.ordinal)
   const hidden = useMemo(() => new Set(docHiddenCols), [docHiddenCols])
   const toggleHidden = (id: number): void =>
     setDocHiddenCols(hidden.has(id) ? docHiddenCols.filter((x) => x !== id) : [...docHiddenCols, id])
@@ -268,7 +268,7 @@ function FieldMapDoc({ colourBy }: { colourBy: DocColourBy }): JSX.Element {
   )
 }
 
-/** B4 — one-page overview: metadata, site details, treatments, schedule, assessments, field map. */
+/** B4 — one-page overview: metadata, site details, treatments, schedule, measurements, field map. */
 function SummaryDoc(): JSX.Element {
   const { snapshot } = useStore()
   const protocol = snapshot!.protocol
@@ -290,9 +290,9 @@ function SummaryDoc(): JSX.Element {
   const actualDate = (code: string): string =>
     actuals.find((x) => x.timingCode === code)?.actualDate || ''
 
-  const headerTitle = (h: AssessmentHeader): string =>
-    h.description || h.ratingType || `Assessment ${h.ordinal + 1}`
-  const headers = [...snapshot!.assessmentHeaders].sort((a, b) => a.ordinal - b.ordinal)
+  const headerTitle = (h: MeasurementHeader): string =>
+    h.description || h.measurementType || `Measurement ${h.ordinal + 1}`
+  const headers = [...snapshot!.measurementHeaders].sort((a, b) => a.ordinal - b.ordinal)
 
   // A4 portrait printable width ≈ 210mm − 2×0.6in margins; large trials get their own map page.
   const mapCell = fitCell(trial.plotCols, 210 - 2 * 15.24, 18, 44)
@@ -419,14 +419,14 @@ function SummaryDoc(): JSX.Element {
         </>
       )}
 
-      {/* Assessment plan */}
+      {/* Measurement plan */}
       {headers.length > 0 && (
         <>
-          <h2>Assessment plan</h2>
+          <h2>Measurement plan</h2>
           <table className="data">
             <thead>
               <tr>
-                <th>Assessment</th>
+                <th>Measurement</th>
                 <th style={{ width: 80 }}>Timing</th>
                 <th style={{ width: 110 }}>Est. date</th>
                 <th style={{ width: 120 }}>Growth stage</th>
@@ -437,7 +437,7 @@ function SummaryDoc(): JSX.Element {
                 <tr key={h.id}>
                   <td>{headerTitle(h)}</td>
                   <td>{timingLabel(h) || '—'}</td>
-                  <td>{assessmentDate(h, actuals) || '—'}</td>
+                  <td>{measurementDate(h, actuals) || '—'}</td>
                   <td>{h.growthStage || '—'}</td>
                 </tr>
               ))}
@@ -453,12 +453,12 @@ function SummaryDoc(): JSX.Element {
   )
 }
 
-const headerTitleOf = (h: AssessmentHeader): string =>
-  h.description || h.ratingType || `Assessment ${h.ordinal + 1}`
-const subCountOf = (h: AssessmentHeader): number => Math.max(1, h.subsamples ?? 1)
+const headerTitleOf = (h: MeasurementHeader): string =>
+  h.description || h.measurementType || `Measurement ${h.ordinal + 1}`
+const subCountOf = (h: MeasurementHeader): number => Math.max(1, h.subsamples ?? 1)
 
-/** B3 — plots in field order × assessment columns, with blank cells for recording (or pre-filled).
- *  `hidden` drops selected assessment columns so a wide sheet fits the page. */
+/** B3 — plots in field order × measurement columns, with blank cells for recording (or pre-filled).
+ *  `hidden` drops selected measurement columns so a wide sheet fits the page. */
 function DataSheetDoc({ prefilled, hidden }: { prefilled: boolean; hidden: Set<number> }): JSX.Element {
   const { snapshot } = useStore()
   const protocol = snapshot!.protocol
@@ -472,18 +472,18 @@ function DataSheetDoc({ prefilled, hidden }: { prefilled: boolean; hidden: Set<n
     const t = treatment.get(id)
     return t ? `${t.number}. ${t.name || 'Trt ' + t.number}` : `#${id}`
   }
-  const headers = [...snapshot!.assessmentHeaders]
+  const headers = [...snapshot!.measurementHeaders]
     .sort((a, b) => a.ordinal - b.ordinal)
     .filter((h) => !hidden.has(h.id!))
   const plots = [...snapshot!.plots].sort((a, b) => a.plotNumber - b.plotNumber)
 
   const valueMap = useMemo(() => {
     const m = new Map<string, number | null>()
-    for (const v of snapshot!.assessmentValues)
-      m.set(`${v.assessmentHeaderId}:${v.plotId}:${v.subsample ?? 1}`, v.value)
+    for (const v of snapshot!.measurementValues)
+      m.set(`${v.measurementHeaderId}:${v.plotId}:${v.subsample ?? 1}`, v.value)
     return m
   }, [snapshot])
-  const meanFor = (h: AssessmentHeader, plotId: number): string => {
+  const meanFor = (h: MeasurementHeader, plotId: number): string => {
     const vals: number[] = []
     for (let s = 1; s <= subCountOf(h); s++) {
       const v = valueMap.get(`${h.id}:${plotId}:${s}`)
@@ -493,12 +493,12 @@ function DataSheetDoc({ prefilled, hidden }: { prefilled: boolean; hidden: Set<n
     const mean = vals.reduce((a, b) => a + b, 0) / vals.length
     return String(Math.round(mean * 100) / 100)
   }
-  const subVal = (h: AssessmentHeader, plotId: number, s: number): string => {
+  const subVal = (h: MeasurementHeader, plotId: number, s: number): string => {
     const v = valueMap.get(`${h.id}:${plotId}:${s}`)
     return v === null || v === undefined ? '' : String(v)
   }
-  // One blank cell per single measurement; for subsample assessments, N stacked lines to record each.
-  const entryCell = (h: AssessmentHeader, plotId: number): JSX.Element => {
+  // One blank cell per single measurement; for subsample measurements, N stacked lines to record each.
+  const entryCell = (h: MeasurementHeader, plotId: number): JSX.Element => {
     const n = subCountOf(h)
     if (n === 1) return <td className="entry-cell">{prefilled ? meanFor(h, plotId) : ''}</td>
     return (

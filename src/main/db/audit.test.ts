@@ -37,7 +37,7 @@ describe('audit trail', () => {
     expect((log[1].detail.changes as Record<string, unknown>).title).toEqual({ old: '', new: 'Rust' })
   })
 
-  it('getAssessmentValue returns the prior value then the updated one', () => {
+  it('getMeasurementValue returns the prior value then the updated one', () => {
     // Minimal trial + plot + header to attach a value to.
     dao.replaceTreatments([
       { number: 1, name: 'A', type: '', applications: [] },
@@ -61,16 +61,16 @@ describe('audit trail', () => {
       },
       [{ plotNumber: 1, rep: 1, treatmentId: t[0].id!, mapRow: 0, mapCol: 0 }]
     )
-    const headerId = dao.upsertAssessmentHeader({
+    const headerId = dao.upsertMeasurementHeader({
       trialId,
-      partRated: '',
-      ratingType: 'CONTRO',
-      ratingUnit: '%',
+      partMeasured: '',
+      measurementType: 'CONTRO',
+      measurementUnit: '%',
       applicationRef: '',
       daysAfter: null,
       timing: '',
       growthStage: '',
-      ratingDate: '',
+      measurementDate: '',
       assessedBy: '',
       description: 'Control',
       ordinal: 0,
@@ -81,8 +81,8 @@ describe('audit trail', () => {
     })
     const plotId = dao.listPlots(trialId)[0].id!
 
-    expect(dao.getAssessmentValue(headerId, plotId, 1)).toBeNull()
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId, subsample: 1, value: 42 })
-    expect(dao.getAssessmentValue(headerId, plotId, 1)).toBe(42)
+    expect(dao.getMeasurementValue(headerId, plotId, 1)).toBeNull()
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId, subsample: 1, value: 42 })
+    expect(dao.getMeasurementValue(headerId, plotId, 1)).toBe(42)
   })
 })

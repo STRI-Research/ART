@@ -5,7 +5,7 @@ import { tmpdir } from 'os'
 import { openProject, closeProject, getRole } from './connection.js'
 import * as dao from './dao.js'
 import { assertProtocolEditable, assertHeaderEditable } from './guards.js'
-import { AssessmentDef } from '@shared/types.js'
+import { MeasurementDef } from '@shared/types.js'
 import type { Treatment, Trial, Plot } from '@shared/types.js'
 
 /** Empty site metadata for building trial literals in tests. */
@@ -64,7 +64,7 @@ describe('treatments', () => {
   })
 })
 
-describe('trial + plots + assessments', () => {
+describe('trial + plots + measurements', () => {
   function seedTrial(): { headerId: number; plots: Plot[] } {
     dao.replaceTreatments(
       [1, 2, 3].map((n) => ({ number: n, name: `T${n}`, type: '', applications: [] }))
@@ -89,16 +89,16 @@ describe('trial + plots + assessments', () => {
       }))
     )
     const trialId = dao.replaceTrialWithPlots(trial, plots)
-    const headerId = dao.upsertAssessmentHeader({
+    const headerId = dao.upsertMeasurementHeader({
       trialId,
-      partRated: 'PLANT',
-      ratingType: 'CONTRO',
-      ratingUnit: '%',
+      partMeasured: 'PLANT',
+      measurementType: 'CONTRO',
+      measurementUnit: '%',
       applicationRef: '',
       daysAfter: null,
       timing: '14 DA-A',
       growthStage: '',
-      ratingDate: '',
+      measurementDate: '',
       assessedBy: '',
       description: 'Control',
       ordinal: 0,
@@ -145,40 +145,40 @@ describe('trial + plots + assessments', () => {
     expect(dao.listPlots(trial!.id!)).toHaveLength(0)
   })
 
-  it('sets, updates, and clears assessment values', () => {
+  it('sets, updates, and clears measurement values', () => {
     const { headerId, plots } = seedTrial()
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId: plots[0].id!, subsample: 1, value: 12.5 })
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId: plots[1].id!, subsample: 1, value: 8 })
-    let values = dao.listAssessmentValues(plots[0].trialId)
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId: plots[0].id!, subsample: 1, value: 12.5 })
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId: plots[1].id!, subsample: 1, value: 8 })
+    let values = dao.listMeasurementValues(plots[0].trialId)
     expect(values).toHaveLength(2)
 
     // Update existing cell.
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId: plots[0].id!, subsample: 1, value: 99 })
-    values = dao.listAssessmentValues(plots[0].trialId)
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId: plots[0].id!, subsample: 1, value: 99 })
+    values = dao.listMeasurementValues(plots[0].trialId)
     expect(values.find((v) => v.plotId === plots[0].id)!.value).toBe(99)
 
     // Null clears the cell.
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId: plots[0].id!, subsample: 1, value: null })
-    expect(dao.listAssessmentValues(plots[0].trialId)).toHaveLength(1)
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId: plots[0].id!, subsample: 1, value: null })
+    expect(dao.listMeasurementValues(plots[0].trialId)).toHaveLength(1)
   })
 
   it('stores subsamples independently per (header, plot, subsample)', () => {
     const { headerId, plots } = seedTrial()
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId: plots[0].id!, subsample: 1, value: 4 })
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId: plots[0].id!, subsample: 2, value: 6 })
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId: plots[0].id!, subsample: 3, value: 8 })
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId: plots[0].id!, subsample: 1, value: 4 })
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId: plots[0].id!, subsample: 2, value: 6 })
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId: plots[0].id!, subsample: 3, value: 8 })
     const forPlot = () =>
-      dao.listAssessmentValues(plots[0].trialId).filter((v) => v.plotId === plots[0].id)
+      dao.listMeasurementValues(plots[0].trialId).filter((v) => v.plotId === plots[0].id)
     expect(forPlot()).toHaveLength(3)
     expect(forPlot().map((v) => v.value).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([4, 6, 8])
 
     // Updating one subsample leaves the others intact.
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId: plots[0].id!, subsample: 2, value: 60 })
-    expect(dao.getAssessmentValue(headerId, plots[0].id!, 2)).toBe(60)
-    expect(dao.getAssessmentValue(headerId, plots[0].id!, 1)).toBe(4)
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId: plots[0].id!, subsample: 2, value: 60 })
+    expect(dao.getMeasurementValue(headerId, plots[0].id!, 2)).toBe(60)
+    expect(dao.getMeasurementValue(headerId, plots[0].id!, 1)).toBe(4)
 
     // Clearing one subsample removes only that row.
-    dao.setAssessmentValue({ assessmentHeaderId: headerId, plotId: plots[0].id!, subsample: 3, value: null })
+    dao.setMeasurementValue({ measurementHeaderId: headerId, plotId: plots[0].id!, subsample: 3, value: null })
     expect(forPlot()).toHaveLength(2)
   })
 
@@ -198,20 +198,20 @@ describe('trial + plots + assessments', () => {
     const snap = dao.snapshot()
     expect(snap.treatments).toHaveLength(3)
     expect(snap.plots).toHaveLength(6)
-    expect(snap.assessmentHeaders).toHaveLength(1)
+    expect(snap.measurementHeaders).toHaveLength(1)
     expect(snap.role).toBe('protocol')
     expect(snap.protocol.design).toBe('RCB')
   })
 })
 
-describe('assessment definitions', () => {
-  it('replaces and lists protocol-owned assessment defs', () => {
-    const defs: AssessmentDef[] = [
-      { partRated: 'PLANT', ratingType: 'CONTRO', ratingUnit: '%', applicationRef: '', daysAfter: null, timing: '7 DA-A', description: 'Control 7', ordinal: 0, analyze: true, subsamples: 5 },
-      { partRated: 'PLANT', ratingType: 'NOTE', ratingUnit: '', applicationRef: '', daysAfter: null, timing: '', description: 'Notes', ordinal: 1, analyze: false, subsamples: 1 }
+describe('measurement definitions', () => {
+  it('replaces and lists protocol-owned measurement defs', () => {
+    const defs: MeasurementDef[] = [
+      { partMeasured: 'PLANT', measurementType: 'CONTRO', measurementUnit: '%', applicationRef: '', daysAfter: null, timing: '7 DA-A', description: 'Control 7', ordinal: 0, analyze: true, subsamples: 5 },
+      { partMeasured: 'PLANT', measurementType: 'NOTE', measurementUnit: '', applicationRef: '', daysAfter: null, timing: '', description: 'Notes', ordinal: 1, analyze: false, subsamples: 1 }
     ]
-    dao.replaceAssessmentDefs(defs)
-    const back = dao.listAssessmentDefs()
+    dao.replaceMeasurementDefs(defs)
+    const back = dao.listMeasurementDefs()
     expect(back).toHaveLength(2)
     expect(back.map((d) => d.timing)).toEqual(['7 DA-A', ''])
     expect(back.map((d) => d.analyze)).toEqual([true, false]) // analyze flag round-trips
@@ -220,7 +220,7 @@ describe('assessment definitions', () => {
 })
 
 describe('protocol → trial', () => {
-  /** Author a protocol file at `path` with treatments + one core assessment def. */
+  /** Author a protocol file at `path` with treatments + one core measurement def. */
   function authorProtocol(path: string): string {
     closeProject()
     openProject(path, { role: 'protocol', create: true })
@@ -228,8 +228,8 @@ describe('protocol → trial', () => {
     dao.replaceTreatments(
       [1, 2].map((n) => ({ number: n, name: `T${n}`, type: '', applications: [] }))
     )
-    dao.replaceAssessmentDefs([
-      { partRated: 'PLANT', ratingType: 'CONTRO', ratingUnit: '%', applicationRef: '', daysAfter: null, timing: '14 DA-A', description: 'Control', ordinal: 0, analyze: false, subsamples: 4 }
+    dao.replaceMeasurementDefs([
+      { partMeasured: 'PLANT', measurementType: 'CONTRO', measurementUnit: '%', applicationRef: '', daysAfter: null, timing: '14 DA-A', description: 'Control', ordinal: 0, analyze: false, subsamples: 4 }
     ])
     const uid = dao.getProtocol().protocolUid
     closeProject()
@@ -247,8 +247,14 @@ describe('protocol → trial', () => {
     expect(p.replicates).toBe(3)
     expect(p.protocolUid).toBe(uid) // identity preserved for matching returned trials
     expect(dao.listTreatments()).toHaveLength(2)
-    expect(dao.listAssessmentDefs()).toHaveLength(1)
-    expect(dao.getTrial()).toBeNull() // layout not generated yet
+    expect(dao.listMeasurementDefs()).toHaveLength(1)
+    // The trial record exists up front (so Site/Applications can be filled in) but is unrandomized:
+    // no layout dimensions and no plots until Generate runs.
+    const t = dao.getTrial()
+    expect(t).not.toBeNull()
+    expect(t!.plotRows).toBe(0)
+    expect(t!.plotCols).toBe(0)
+    expect(dao.listPlots(t!.id!)).toHaveLength(0)
   })
 
   it('materializes locked core headers when the layout is generated', () => {
@@ -259,7 +265,7 @@ describe('protocol → trial', () => {
       []
     )
     dao.materializeCoreHeaders(trialId)
-    const headers = dao.listAssessmentHeaders(trialId)
+    const headers = dao.listMeasurementHeaders(trialId)
     expect(headers).toHaveLength(1)
     expect(headers[0].origin).toBe('core')
     expect(headers[0].locked).toBe(true)
@@ -278,19 +284,19 @@ describe('protocol → trial', () => {
 
     expect(() => assertProtocolEditable()).toThrow(/locked/)
 
-    const core = dao.listAssessmentHeaders(trialId)[0]
+    const core = dao.listMeasurementHeaders(trialId)[0]
     expect(() => assertHeaderEditable(core.id!)).toThrow(/protocol/)
 
-    const siteId = dao.upsertAssessmentHeader({
+    const siteId = dao.upsertMeasurementHeader({
       trialId,
-      partRated: '',
-      ratingType: 'SITE',
-      ratingUnit: '',
+      partMeasured: '',
+      measurementType: 'SITE',
+      measurementUnit: '',
       applicationRef: '',
       daysAfter: null,
       timing: '',
       growthStage: '',
-      ratingDate: '',
+      measurementDate: '',
       assessedBy: '',
       description: 'Site column',
       ordinal: 1,
@@ -392,13 +398,13 @@ describe('applications', () => {
     expect(dao.snapshot().applicationActuals).toHaveLength(2)
   })
 
-  it('keeps assessment anchor fields (application_ref + days_after) through save/materialize', () => {
+  it('keeps measurement anchor fields (application_ref + days_after) through save/materialize', () => {
     const proto = join(dir, 'p2.artproto')
     openProject(proto, { role: 'protocol', create: true })
-    dao.replaceAssessmentDefs([
-      AssessmentDef.parse({ ratingType: 'CONTRO', applicationRef: 'A', daysAfter: 14, description: 'Control 14 DA-A' })
+    dao.replaceMeasurementDefs([
+      MeasurementDef.parse({ measurementType: 'CONTRO', applicationRef: 'A', daysAfter: 14, description: 'Control 14 DA-A' })
     ])
-    const def = dao.listAssessmentDefs()[0]
+    const def = dao.listMeasurementDefs()[0]
     expect(def.applicationRef).toBe('A')
     expect(def.daysAfter).toBe(14)
 
@@ -407,7 +413,7 @@ describe('applications', () => {
       []
     )
     dao.materializeCoreHeaders(trialId)
-    const h = dao.listAssessmentHeaders(trialId)[0]
+    const h = dao.listMeasurementHeaders(trialId)[0]
     expect(h.applicationRef).toBe('A')
     expect(h.daysAfter).toBe(14)
   })

@@ -20,9 +20,9 @@ export const DESIGN_LABELS: Record<DesignType, string> = {
 export const Role = z.enum(['protocol', 'trial'])
 export type Role = z.infer<typeof Role>
 
-/** Origin of an assessment column: protocol-defined (locked) vs. operator-added. */
-export const AssessmentOrigin = z.enum(['core', 'site'])
-export type AssessmentOrigin = z.infer<typeof AssessmentOrigin>
+/** Origin of an measurement column: protocol-defined (locked) vs. operator-added. */
+export const MeasurementOrigin = z.enum(['core', 'site'])
+export type MeasurementOrigin = z.infer<typeof MeasurementOrigin>
 
 export const MeanComparisonTest = z.enum(['LSD', 'TUKEY', 'DUNCAN', 'SNK'])
 export type MeanComparisonTest = z.infer<typeof MeanComparisonTest>
@@ -37,8 +37,8 @@ export type AlphaLevel = z.infer<typeof AlphaLevel>
 export const LibraryCategory = z.enum([
   'crop',
   'target',
-  'rating_type',
-  'part_rated',
+  'measurement_type',
+  'part_measured',
   'unit',
   'growth_stage',
   'treatment_type',
@@ -54,7 +54,7 @@ export const GENERAL_CATEGORIES: ReadonlySet<LibraryCategory> = new Set<LibraryC
   'property_key'
 ])
 
-/** Whether a category's terms are scoped/ranked by crop (e.g. rating types), vs. general (crop, unit). */
+/** Whether a category's terms are scoped/ranked by crop (e.g. measurement types), vs. general (crop, unit). */
 export function isCropScoped(category: LibraryCategory): boolean {
   return !GENERAL_CATEGORIES.has(category)
 }
@@ -62,8 +62,8 @@ export function isCropScoped(category: LibraryCategory): boolean {
 export const LIBRARY_CATEGORY_LABELS: Record<LibraryCategory, string> = {
   crop: 'Crops',
   target: 'Target organisms',
-  rating_type: 'Rating types',
-  part_rated: 'Parts rated',
+  measurement_type: 'Measurement types',
+  part_measured: 'Parts measured',
   unit: 'Units',
   growth_stage: 'Growth stages',
   treatment_type: 'Treatment types',
@@ -161,7 +161,7 @@ export type Treatment = z.infer<typeof Treatment>
  * A protocol-defined application (the *plan*): ordered A/B/C… treatments-application events, each a
  * timing code + intended crop growth stage. The actual date it happened is trial-side
  * (`ApplicationActual`), because one protocol serves many sites with different planting dates.
- * Assessments anchor their timing to an application (see `AssessmentDef.applicationRef`).
+ * Measurements anchor their timing to an application (see `MeasurementDef.applicationRef`).
  */
 export const Application = z.object({
   id: z.number().int().optional(),
@@ -219,8 +219,10 @@ export type SiteMetadata = z.infer<typeof SiteMetadata>
 export const Trial = SiteMetadata.extend({
   id: z.number().int().optional(),
   protocolId: z.number().int(),
-  plotRows: z.number().int().positive(),
-  plotCols: z.number().int().positive(),
+  // 0 while the trial is unrandomized (the row exists so Site/Applications can be edited before
+  // randomizing); a real layout is present once plots exist.
+  plotRows: z.number().int().min(0),
+  plotCols: z.number().int().min(0),
   seed: z.number().int(),
   /** ISO timestamp when the layout was confirmed & locked; '' while a draft. */
   layoutLockedAt: z.string().default('')
@@ -243,15 +245,15 @@ export const Plot = z.object({
 export type Plot = z.infer<typeof Plot>
 
 // ---------------------------------------------------------------------------
-// Assessments
+// Measurements
 // ---------------------------------------------------------------------------
-/** A protocol-authored assessment definition (no trial binding). */
-export const AssessmentDef = z.object({
+/** A protocol-authored measurement definition (no trial binding). */
+export const MeasurementDef = z.object({
   id: z.number().int().optional(),
-  partRated: z.string().default(''),
-  ratingType: z.string().default(''),
-  ratingUnit: z.string().default(''),
-  /** Anchor: the application (timing code) this assessment is timed relative to; '' = unanchored. */
+  partMeasured: z.string().default(''),
+  measurementType: z.string().default(''),
+  measurementUnit: z.string().default(''),
+  /** Anchor: the application (timing code) this measurement is timed relative to; '' = unanchored. */
   applicationRef: z.string().default(''),
   /** Days after the anchored application; null when unanchored. */
   daysAfter: z.number().int().nullable().default(null),
@@ -259,39 +261,39 @@ export const AssessmentDef = z.object({
   timing: z.string().default(''),
   description: z.string().default(''),
   ordinal: z.number().int().default(0),
-  /** Whether this assessment is included in ANOVA and the report. */
+  /** Whether this measurement is included in ANOVA and the report. */
   analyze: z.boolean().default(true),
   /** Measurements recorded per plot; >1 are averaged to the plot value before ANOVA. */
   subsamples: z.number().int().min(1).max(50).default(1)
 })
-export type AssessmentDef = z.infer<typeof AssessmentDef>
+export type MeasurementDef = z.infer<typeof MeasurementDef>
 
 /**
- * A trial's assessment column: the definition plus **event metadata** recorded when the assessment
+ * A trial's measurement column: the definition plus **event metadata** recorded when the measurement
  * is actually performed (at data entry, not at authoring): the date, who assessed, and the crop
  * growth stage observed.
  */
-export const AssessmentHeader = AssessmentDef.extend({
+export const MeasurementHeader = MeasurementDef.extend({
   trialId: z.number().int(),
-  origin: AssessmentOrigin.default('site'),
+  origin: MeasurementOrigin.default('site'),
   locked: z.boolean().default(false),
-  /** Date the assessment was performed (ISO). */
-  ratingDate: z.string().default(''),
-  /** Who performed the assessment. */
+  /** Date the measurement was performed (ISO). */
+  measurementDate: z.string().default(''),
+  /** Who performed the measurement. */
   assessedBy: z.string().default(''),
-  /** Crop growth stage observed at this assessment (from the growth_stage library). */
+  /** Crop growth stage observed at this measurement (from the growth_stage library). */
   growthStage: z.string().default('')
 })
-export type AssessmentHeader = z.infer<typeof AssessmentHeader>
+export type MeasurementHeader = z.infer<typeof MeasurementHeader>
 
-export const AssessmentValue = z.object({
-  assessmentHeaderId: z.number().int(),
+export const MeasurementValue = z.object({
+  measurementHeaderId: z.number().int(),
   plotId: z.number().int(),
   /** 1-based subsample index; 1 is the default single measurement. */
   subsample: z.number().int().min(1).default(1),
   value: z.number().nullable()
 })
-export type AssessmentValue = z.infer<typeof AssessmentValue>
+export type MeasurementValue = z.infer<typeof MeasurementValue>
 
 // ---------------------------------------------------------------------------
 // Randomization request/response (main <-> R)
@@ -395,11 +397,11 @@ export interface ProjectSnapshot {
   protocol: Protocol
   treatments: Treatment[]
   applications: Application[]
-  assessmentDefs: AssessmentDef[]
+  measurementDefs: MeasurementDef[]
   trial: Trial | null
   plots: Plot[]
-  assessmentHeaders: AssessmentHeader[]
-  assessmentValues: AssessmentValue[]
+  measurementHeaders: MeasurementHeader[]
+  measurementValues: MeasurementValue[]
   /** Trial-side actual application dates (empty for a protocol document). */
   applicationActuals: ApplicationActual[]
   /** Trial-side key/value properties (site details + application conditions). */
@@ -431,7 +433,7 @@ export interface AuditEntry {
   ts: string // UTC ISO timestamp
   actor: string // OS account
   role: Role | ''
-  action: string // machine code, e.g. "assessment.value.set"
+  action: string // machine code, e.g. "measurement.value.set"
   entity: string
   summary: string // human-readable, includes old -> new where relevant
   detail: Record<string, unknown>

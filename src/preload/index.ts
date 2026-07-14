@@ -7,9 +7,9 @@ import type {
   ApplicationActual,
   Property,
   PropertyScope,
-  AssessmentDef,
-  AssessmentHeader,
-  AssessmentValue,
+  MeasurementDef,
+  MeasurementHeader,
+  MeasurementValue,
   AovRequest,
   AovResult,
   AuditEntry,
@@ -46,8 +46,10 @@ const api = {
     newFromCurrent: (): Promise<ProjectSnapshot | null> =>
       ipcRenderer.invoke(IPC.trialNewFromCurrent),
     open: (): Promise<ProjectSnapshot | null> => ipcRenderer.invoke(IPC.trialOpen),
-    generate: (cfg: Partial<SiteMetadata> & { seed?: number }): Promise<ProjectSnapshot> =>
+    generate: (cfg: { seed?: number }): Promise<ProjectSnapshot> =>
       ipcRenderer.invoke(IPC.trialGenerate, cfg),
+    saveSite: (site: SiteMetadata): Promise<ProjectSnapshot> =>
+      ipcRenderer.invoke(IPC.trialSaveSite, site),
     lockLayout: (): Promise<ProjectSnapshot> => ipcRenderer.invoke(IPC.trialLockLayout),
     saveApplicationActuals: (list: ApplicationActual[]): Promise<ProjectSnapshot> =>
       ipcRenderer.invoke(IPC.applicationActualsSave, list),
@@ -62,21 +64,21 @@ const api = {
     setPlotExcluded: (plotId: number, excluded: boolean, reason: string): Promise<ProjectSnapshot> =>
       ipcRenderer.invoke(IPC.plotSetExcluded, { plotId, excluded, reason })
   },
-  assessments: {
-    saveDefs: (list: AssessmentDef[]): Promise<AssessmentDef[]> =>
-      ipcRenderer.invoke(IPC.assessmentDefSave, list),
-    addSiteHeader: (h: AssessmentHeader): Promise<AssessmentHeader[]> =>
-      ipcRenderer.invoke(IPC.assessmentHeaderAddSite, h),
-    upsertHeader: (h: AssessmentHeader): Promise<AssessmentHeader[]> =>
-      ipcRenderer.invoke(IPC.assessmentHeaderUpsert, h),
-    deleteHeader: (id: number): Promise<AssessmentHeader[]> =>
-      ipcRenderer.invoke(IPC.assessmentHeaderDelete, id),
+  measurements: {
+    saveDefs: (list: MeasurementDef[]): Promise<MeasurementDef[]> =>
+      ipcRenderer.invoke(IPC.measurementDefSave, list),
+    addSiteHeader: (h: MeasurementHeader): Promise<MeasurementHeader[]> =>
+      ipcRenderer.invoke(IPC.measurementHeaderAddSite, h),
+    upsertHeader: (h: MeasurementHeader): Promise<MeasurementHeader[]> =>
+      ipcRenderer.invoke(IPC.measurementHeaderUpsert, h),
+    deleteHeader: (id: number): Promise<MeasurementHeader[]> =>
+      ipcRenderer.invoke(IPC.measurementHeaderDelete, id),
     saveMetadata: (
       id: number,
-      meta: { ratingDate: string; assessedBy: string; growthStage: string }
-    ): Promise<ProjectSnapshot> => ipcRenderer.invoke(IPC.assessmentMetadataSave, { id, ...meta }),
-    setValue: (v: AssessmentValue): Promise<boolean> =>
-      ipcRenderer.invoke(IPC.assessmentValueSet, v)
+      meta: { measurementDate: string; assessedBy: string; growthStage: string }
+    ): Promise<ProjectSnapshot> => ipcRenderer.invoke(IPC.measurementMetadataSave, { id, ...meta }),
+    setValue: (v: MeasurementValue): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.measurementValueSet, v)
   },
   library: {
     suggest: (category: LibraryCategory, query: string, crop: string): Promise<SuggestHit[]> =>

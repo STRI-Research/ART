@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { openProject, closeProject } from './connection.js'
-import { AssessmentDef } from '@shared/types.js'
+import { MeasurementDef } from '@shared/types.js'
 import * as dao from './dao.js'
 
 let dir: string
@@ -40,11 +40,11 @@ describe('properties', () => {
   })
 })
 
-describe('assessment growth stage', () => {
+describe('measurement growth stage', () => {
   it('is captured at data entry as event metadata on the trial header, not the definition', () => {
-    // Growth stage is not part of the protocol definition — it's observed when the assessment
+    // Growth stage is not part of the protocol definition — it's observed when the measurement
     // is performed, so it lives on the trial header and defaults empty until recorded.
-    dao.replaceAssessmentDefs([AssessmentDef.parse({ ratingType: 'CONTRO', description: 'Control' })])
+    dao.replaceMeasurementDefs([MeasurementDef.parse({ measurementType: 'CONTRO', description: 'Control' })])
 
     const trialId = dao.replaceTrialWithPlots(
       {
@@ -64,17 +64,17 @@ describe('assessment growth stage', () => {
       []
     )
     dao.materializeCoreHeaders(trialId)
-    const header = dao.listAssessmentHeaders(trialId)[0]
+    const header = dao.listMeasurementHeaders(trialId)[0]
     expect(header.growthStage).toBe('')
 
-    dao.updateAssessmentMetadata(header.id!, {
-      ratingDate: '2026-07-01',
+    dao.updateMeasurementMetadata(header.id!, {
+      measurementDate: '2026-07-01',
       assessedBy: 'JD',
       growthStage: 'BBCH 65'
     })
-    const updated = dao.listAssessmentHeaders(trialId)[0]
+    const updated = dao.listMeasurementHeaders(trialId)[0]
     expect(updated.growthStage).toBe('BBCH 65')
-    expect(updated.ratingDate).toBe('2026-07-01')
+    expect(updated.measurementDate).toBe('2026-07-01')
     expect(updated.assessedBy).toBe('JD')
   })
 })

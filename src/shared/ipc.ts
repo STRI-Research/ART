@@ -10,13 +10,14 @@ export const IPC = {
   protocolSave: 'protocol:save',
   treatmentsSave: 'treatments:save',
   applicationsSave: 'applications:save',
-  assessmentDefSave: 'assessment:def:save',
+  measurementDefSave: 'measurement:def:save',
 
   // Trial (created from a protocol)
   trialNewFromProtocol: 'trial:newFromProtocol',
   trialNewFromCurrent: 'trial:newFromCurrentProtocol',
   trialOpen: 'trial:open',
   trialGenerate: 'trial:generate',
+  trialSaveSite: 'trial:saveSite',
   trialLockLayout: 'trial:lockLayout',
   applicationActualsSave: 'trial:applicationActuals:save',
   propertiesSave: 'trial:properties:save',
@@ -25,12 +26,12 @@ export const IPC = {
   layoutReshape: 'layout:reshape',
   plotSetExcluded: 'plot:setExcluded',
 
-  // Assessments
-  assessmentHeaderAddSite: 'assessment:header:addSite',
-  assessmentHeaderUpsert: 'assessment:header:upsert',
-  assessmentHeaderDelete: 'assessment:header:delete',
-  assessmentMetadataSave: 'assessment:metadata:save',
-  assessmentValueSet: 'assessment:value:set',
+  // Measurements
+  measurementHeaderAddSite: 'measurement:header:addSite',
+  measurementHeaderUpsert: 'measurement:header:upsert',
+  measurementHeaderDelete: 'measurement:header:delete',
+  measurementMetadataSave: 'measurement:metadata:save',
+  measurementValueSet: 'measurement:value:set',
 
   // Library (personal curated vocabulary)
   librarySuggest: 'library:suggest',

@@ -16,7 +16,7 @@ change request arrives shaped as "add a field for X", the answer comes from here
 "Consumes" means an ART feature *reads the value and does something with it*: the randomizer,
 the analysis engine, the trial map, data entry, or the report. Everything in the schema today
 passes this test — design/replicates/block size feed R, treatments feed the ANOVA, plot
-dimensions feed the map, assessment definitions feed data entry and analysis.
+dimensions feed the map, measurement definitions feed data entry and analysis.
 
 A field that exists only so a human can read it back later is not a box; it is a note.
 

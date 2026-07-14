@@ -4,7 +4,7 @@ import type { Application } from '@shared/types'
 
 /**
  * Protocol applications — the timing *plan* (A/B/C…): each a timing code + intended crop growth
- * stage. Assessments anchor their timing to these; the actual date each happened is recorded per
+ * stage. Measurements anchor their timing to these; the actual date each happened is recorded per
  * trial (Site tab). Read-only inside a locked trial.
  */
 export function ApplicationsEditor({ readOnly }: { readOnly: boolean }): JSX.Element {
@@ -40,7 +40,7 @@ export function ApplicationsEditor({ readOnly }: { readOnly: boolean }): JSX.Ele
     <div className="card">
       <h2>Applications</h2>
       <p className="muted">
-        The treatment-application schedule (A, B, C…). Assessments can be timed relative to an
+        The treatment-application schedule (A, B, C…). Measurements can be timed relative to an
         application (e.g. &quot;14&nbsp;DA-A&quot;). The date each application actually happens is
         recorded per trial site.
       </p>

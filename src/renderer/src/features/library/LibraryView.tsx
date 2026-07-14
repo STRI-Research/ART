@@ -16,7 +16,7 @@ import {
 export function LibraryView(): JSX.Element {
   const { run, setNotice } = useStore()
   const [terms, setTerms] = useState<PersonalTerm[]>([])
-  const [category, setCategory] = useState<LibraryCategory>('rating_type')
+  const [category, setCategory] = useState<LibraryCategory>('measurement_type')
 
   const load = (): void => {
     run('Loading library', async () => setTerms((await window.art.library.list()) ?? []))

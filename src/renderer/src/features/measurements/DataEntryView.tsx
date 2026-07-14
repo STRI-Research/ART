@@ -4,7 +4,7 @@ import type { DataSheetGridRef } from 'react-datasheet-grid'
 import 'react-datasheet-grid/dist/style.css'
 import { useStore } from '../../store'
 import { Combobox } from '../../components/Combobox'
-import type { AssessmentHeader, AssessmentValue } from '@shared/types'
+import type { MeasurementHeader, MeasurementValue } from '@shared/types'
 
 // Index-signature shape (not an interface with required fields) so it stays structurally
 // compatible with react-datasheet-grid's generic column helpers.
@@ -18,7 +18,7 @@ type GridRow = {
 
 export function DataEntryView(): JSX.Element {
   const { snapshot, setSnapshot, setView, run } = useStore()
-  const headers = snapshot!.assessmentHeaders
+  const headers = snapshot!.measurementHeaders
   // Plots excluded from analysis are hatched in the grid (matching the Trial Map).
   const excludedPlotIds = useMemo(
     () => new Set(snapshot!.plots.filter((p) => p.excluded).map((p) => p.id)),
@@ -32,20 +32,20 @@ export function DataEntryView(): JSX.Element {
     }
   }, [snapshot])
 
-  const title = (h: AssessmentHeader): string =>
-    h.description || h.ratingType || `Assessment ${h.ordinal + 1}`
-  const subCount = (h: AssessmentHeader): number => Math.max(1, h.subsamples ?? 1)
+  const title = (h: MeasurementHeader): string =>
+    h.description || h.measurementType || `Measurement ${h.ordinal + 1}`
+  const subCount = (h: MeasurementHeader): number => Math.max(1, h.subsamples ?? 1)
   const crop = snapshot!.protocol.crop
 
   // value lookup: `${headerId}:${plotId}:${subsample}` -> value
   const valueMap = useMemo(() => {
     const m = new Map<string, number | null>()
-    for (const v of snapshot!.assessmentValues)
-      m.set(`${v.assessmentHeaderId}:${v.plotId}:${v.subsample ?? 1}`, v.value)
+    for (const v of snapshot!.measurementValues)
+      m.set(`${v.measurementHeaderId}:${v.plotId}:${v.subsample ?? 1}`, v.value)
     return m
   }, [snapshot])
 
-  const meanFor = (h: AssessmentHeader, plotId: number): number | null => {
+  const meanFor = (h: MeasurementHeader, plotId: number): number | null => {
     const vals: number[] = []
     for (let s = 1; s <= subCount(h); s++) {
       const v = valueMap.get(`${h.id}:${plotId}:${s}`)
@@ -112,7 +112,7 @@ export function DataEntryView(): JSX.Element {
       { ...keyColumn('plot', textColumn), title: 'Plot', disabled: true, width: 0.5 },
       { ...keyColumn('rep', textColumn), title: 'Rep', disabled: true, width: 0.4 },
       { ...keyColumn('treatment', textColumn), title: 'Treatment', disabled: true, width: 1.4 },
-      // Subsample column: static (always present when any assessment has subsamples). This grid only
+      // Subsample column: static (always present when any measurement has subsamples). This grid only
       // lays out the columns present at mount, so the column stays put; it's simply blank on the
       // collapsed plot rows and shows the subsample index once rows are expanded.
       ...(maxSub > 1
@@ -130,7 +130,7 @@ export function DataEntryView(): JSX.Element {
 
   const onChange = (next: GridRow[]): void => {
     // Persist only changed cells to keep writes minimal.
-    const changes: AssessmentValue[] = []
+    const changes: MeasurementValue[] = []
     next.forEach((row, i) => {
       const before = rows[i]
       const plotId = before.plotId as number
@@ -148,7 +148,7 @@ export function DataEntryView(): JSX.Element {
         }
         const after = row[key]
         changes.push({
-          assessmentHeaderId: h.id!,
+          measurementHeaderId: h.id!,
           plotId,
           subsample,
           value: after === null || after === '' ? null : Number(after)
@@ -157,24 +157,24 @@ export function DataEntryView(): JSX.Element {
     })
     if (changes.length === 0) return
     run('Saving data', async () => {
-      for (const c of changes) await window.art.assessments.setValue(c)
+      for (const c of changes) await window.art.measurements.setValue(c)
       // Reflect changes locally without a full round-trip.
       const map = new Map(
-        snapshot!.assessmentValues.map((v) => [
-          `${v.assessmentHeaderId}:${v.plotId}:${v.subsample ?? 1}`,
+        snapshot!.measurementValues.map((v) => [
+          `${v.measurementHeaderId}:${v.plotId}:${v.subsample ?? 1}`,
           v
         ])
       )
       for (const c of changes) {
-        const k = `${c.assessmentHeaderId}:${c.plotId}:${c.subsample}`
+        const k = `${c.measurementHeaderId}:${c.plotId}:${c.subsample}`
         if (c.value === null) map.delete(k)
         else map.set(k, c)
       }
-      setSnapshot({ ...snapshot!, assessmentValues: [...map.values()] })
+      setSnapshot({ ...snapshot!, measurementValues: [...map.values()] })
     })
   }
 
-  // Expansion is driven by the focused column: a multi-subsample assessment (or the Subsample
+  // Expansion is driven by the focused column: a multi-subsample measurement (or the Subsample
   // column itself) expands all plots; anything else collapses. Adding/removing the Subsample
   // column shifts column indices and makes the grid re-emit onActiveCellChange with the SAME
   // numeric (col,row) but a new colId — we dedupe on (col,row) to ignore those spurious re-emits.
@@ -210,19 +210,19 @@ export function DataEntryView(): JSX.Element {
       <div className="card">
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
           <h2 style={{ margin: 0 }}>Enter Data</h2>
-          <button className="link" onClick={() => setView('assessments')}>
+          <button className="link" onClick={() => setView('measurements')}>
             ← Edit columns
           </button>
         </div>
         {headers.length === 0 ? (
           <p className="muted">
-            Add an assessment column on the <strong>Assessment Columns</strong> tab to begin entering
+            Add an measurement column on the <strong>Measurement Columns</strong> tab to begin entering
             data.
           </p>
         ) : (
           <>
             <p className="muted">
-              One row per plot. For assessments with subsamples the cell shows the plot mean
+              One row per plot. For measurements with subsamples the cell shows the plot mean
               (read-only); select that cell to expand every plot into its subsample rows for entry.
               The mean is the value used in analysis.
             </p>
@@ -245,7 +245,7 @@ export function DataEntryView(): JSX.Element {
         )}
       </div>
       {headers.length > 0 && (
-        <AssessmentMetadataPanel headers={headers} crop={crop} title={title} />
+        <MeasurementMetadataPanel headers={headers} crop={crop} title={title} />
       )}
       {headers.length > 0 && (
         <div className="row" style={{ justifyContent: 'flex-end' }}>
@@ -259,25 +259,25 @@ export function DataEntryView(): JSX.Element {
 }
 
 /**
- * Per-assessment event metadata, captured at data entry (not at authoring): the date the assessment
+ * Per-measurement event metadata, captured at data entry (not at authoring): the date the measurement
  * was performed, who performed it, and the crop growth stage observed. Each field persists on commit
- * via `assessments.saveMetadata`, which returns a fresh snapshot.
+ * via `measurements.saveMetadata`, which returns a fresh snapshot.
  */
-function AssessmentMetadataPanel({
+function MeasurementMetadataPanel({
   headers,
   crop,
   title
 }: {
-  headers: AssessmentHeader[]
+  headers: MeasurementHeader[]
   crop: string
-  title: (h: AssessmentHeader) => string
+  title: (h: MeasurementHeader) => string
 }): JSX.Element {
   const { setSnapshot, run } = useStore()
 
-  const save = (h: AssessmentHeader, patch: Partial<AssessmentHeader>): void => {
-    run('Saving assessment details', async () => {
-      const s = await window.art.assessments.saveMetadata(h.id!, {
-        ratingDate: patch.ratingDate ?? h.ratingDate,
+  const save = (h: MeasurementHeader, patch: Partial<MeasurementHeader>): void => {
+    run('Saving measurement details', async () => {
+      const s = await window.art.measurements.saveMetadata(h.id!, {
+        measurementDate: patch.measurementDate ?? h.measurementDate,
         assessedBy: patch.assessedBy ?? h.assessedBy,
         growthStage: patch.growthStage ?? h.growthStage
       })
@@ -287,15 +287,15 @@ function AssessmentMetadataPanel({
 
   return (
     <div className="card">
-      <h3 style={{ marginTop: 0 }}>Assessment details</h3>
+      <h3 style={{ marginTop: 0 }}>Measurement details</h3>
       <p className="muted">
-        Record when each assessment was performed, who performed it, and the crop growth stage
-        observed. These appear on the report alongside each assessment&rsquo;s results.
+        Record when each measurement was performed, who performed it, and the crop growth stage
+        observed. These appear on the report alongside each measurement&rsquo;s results.
       </p>
       <table className="data">
         <thead>
           <tr>
-            <th>Assessment</th>
+            <th>Measurement</th>
             <th style={{ width: 150 }}>Date assessed</th>
             <th style={{ width: 180 }}>Assessed by</th>
             <th style={{ width: 180 }}>Growth stage</th>
@@ -308,9 +308,9 @@ function AssessmentMetadataPanel({
               <td>
                 <input
                   type="date"
-                  defaultValue={h.ratingDate}
+                  defaultValue={h.measurementDate}
                   onBlur={(e) => {
-                    if (e.target.value !== h.ratingDate) save(h, { ratingDate: e.target.value })
+                    if (e.target.value !== h.measurementDate) save(h, { measurementDate: e.target.value })
                   }}
                 />
               </td>

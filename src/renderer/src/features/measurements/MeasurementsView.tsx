@@ -3,13 +3,13 @@ import { useStore } from '../../store'
 import { Combobox } from '../../components/Combobox'
 import { TimingField } from '../../components/TimingField'
 import { timingLabel } from '@shared/timing'
-import type { AssessmentHeader } from '@shared/types'
+import type { MeasurementHeader } from '@shared/types'
 
-export function AssessmentsView(): JSX.Element {
+export function MeasurementsView(): JSX.Element {
   const snapshot = useStore((s) => s.snapshot)
   const setView = useStore((s) => s.setView)
   const trial = snapshot!.trial!
-  const headers = snapshot!.assessmentHeaders
+  const headers = snapshot!.measurementHeaders
   return (
     <>
       <HeaderManager trialId={trial.id!} headers={headers} />
@@ -27,14 +27,14 @@ function HeaderManager({
   headers
 }: {
   trialId: number
-  headers: AssessmentHeader[]
+  headers: MeasurementHeader[]
 }): JSX.Element {
   const { snapshot, setSnapshot, run } = useStore()
   const applications = snapshot!.applications
   const [draft, setDraft] = useState({
-    partRated: '',
-    ratingType: '',
-    ratingUnit: '',
+    partMeasured: '',
+    measurementType: '',
+    measurementUnit: '',
     applicationRef: '',
     daysAfter: null as number | null,
     timing: '',
@@ -43,59 +43,59 @@ function HeaderManager({
   })
 
   const add = (): void => {
-    run('Adding assessment', async () => {
+    run('Adding measurement', async () => {
       const label = timingLabel(draft)
-      const next = await window.art.assessments.addSiteHeader({
+      const next = await window.art.measurements.addSiteHeader({
         trialId,
-        partRated: draft.partRated,
-        ratingType: draft.ratingType,
-        ratingUnit: draft.ratingUnit,
+        partMeasured: draft.partMeasured,
+        measurementType: draft.measurementType,
+        measurementUnit: draft.measurementUnit,
         applicationRef: draft.applicationRef,
         daysAfter: draft.daysAfter,
         timing: draft.timing,
         description:
-          [draft.ratingType, draft.partRated, label].filter(Boolean).join(' ') || 'Assessment',
+          [draft.measurementType, draft.partMeasured, label].filter(Boolean).join(' ') || 'Measurement',
         ordinal: headers.length,
         origin: 'site',
         locked: false,
         analyze: draft.analyze,
         subsamples: Math.max(1, draft.subsamples || 1),
         // Event metadata (date / assessor / growth stage) is recorded later at data entry.
-        ratingDate: '',
+        measurementDate: '',
         assessedBy: '',
         growthStage: ''
       })
       // Refetch so the new coded terms surface in library suggestions/labels.
       const s = await window.art.project.snapshot()
-      setSnapshot(s ?? { ...snapshot!, assessmentHeaders: next })
-      setDraft({ partRated: '', ratingType: '', ratingUnit: '', applicationRef: '', daysAfter: null, timing: '', analyze: true, subsamples: 1 })
+      setSnapshot(s ?? { ...snapshot!, measurementHeaders: next })
+      setDraft({ partMeasured: '', measurementType: '', measurementUnit: '', applicationRef: '', daysAfter: null, timing: '', analyze: true, subsamples: 1 })
     })
   }
 
-  const setSubsamples = (h: AssessmentHeader, n: number): void => {
-    run('Updating assessment', async () => {
-      const next = await window.art.assessments.upsertHeader({ ...h, subsamples: Math.max(1, n || 1) })
-      setSnapshot({ ...snapshot!, assessmentHeaders: next })
+  const setSubsamples = (h: MeasurementHeader, n: number): void => {
+    run('Updating measurement', async () => {
+      const next = await window.art.measurements.upsertHeader({ ...h, subsamples: Math.max(1, n || 1) })
+      setSnapshot({ ...snapshot!, measurementHeaders: next })
     })
   }
 
   const remove = (id: number): void => {
-    run('Removing assessment', async () => {
-      const next = await window.art.assessments.deleteHeader(id)
-      setSnapshot({ ...snapshot!, assessmentHeaders: next })
+    run('Removing measurement', async () => {
+      const next = await window.art.measurements.deleteHeader(id)
+      setSnapshot({ ...snapshot!, measurementHeaders: next })
     })
   }
 
-  const toggleAnalyze = (h: AssessmentHeader): void => {
-    run('Updating assessment', async () => {
-      const next = await window.art.assessments.upsertHeader({ ...h, analyze: !h.analyze })
-      setSnapshot({ ...snapshot!, assessmentHeaders: next })
+  const toggleAnalyze = (h: MeasurementHeader): void => {
+    run('Updating measurement', async () => {
+      const next = await window.art.measurements.upsertHeader({ ...h, analyze: !h.analyze })
+      setSnapshot({ ...snapshot!, measurementHeaders: next })
     })
   }
 
   return (
     <div className="card">
-      <h2>Assessment Columns</h2>
+      <h2>Measurement Columns</h2>
       <p className="muted">
         Core columns are defined by the protocol (locked). You may add site-specific columns below.
       </p>
@@ -104,8 +104,8 @@ function HeaderManager({
           <thead>
             <tr>
               <th style={{ width: 70 }}>Source</th>
-              <th>Rating type</th>
-              <th>Part rated</th>
+              <th>Measurement type</th>
+              <th>Part measured</th>
               <th>Unit</th>
               <th>Timing</th>
               <th style={{ width: 70 }}>Subs</th>
@@ -123,9 +123,9 @@ function HeaderManager({
                     <span className="tag site">site</span>
                   )}
                 </td>
-                <td>{h.ratingType || '—'}</td>
-                <td>{h.partRated || '—'}</td>
-                <td>{h.ratingUnit || '—'}</td>
+                <td>{h.measurementType || '—'}</td>
+                <td>{h.partMeasured || '—'}</td>
+                <td>{h.measurementUnit || '—'}</td>
                 <td>{timingLabel(h) || '—'}</td>
                 <td className="num">
                   {h.origin === 'core' ? (
@@ -151,7 +151,7 @@ function HeaderManager({
                     title={
                       h.origin === 'core'
                         ? 'Set by the protocol'
-                        : 'Include this assessment in ANOVA and the report'
+                        : 'Include this measurement in ANOVA and the report'
                     }
                   />
                 </td>
@@ -169,21 +169,21 @@ function HeaderManager({
       )}
       <div className="row">
         <div style={{ width: 160 }}>
-          <label>Rating type</label>
+          <label>Measurement type</label>
           <Combobox
-            category="rating_type"
+            category="measurement_type"
             crop={snapshot!.protocol.crop}
-            value={draft.ratingType}
-            onChange={(v) => setDraft({ ...draft, ratingType: v })}
+            value={draft.measurementType}
+            onChange={(v) => setDraft({ ...draft, measurementType: v })}
           />
         </div>
         <div style={{ width: 160 }}>
-          <label>Part rated</label>
+          <label>Part measured</label>
           <Combobox
-            category="part_rated"
+            category="part_measured"
             crop={snapshot!.protocol.crop}
-            value={draft.partRated}
-            onChange={(v) => setDraft({ ...draft, partRated: v })}
+            value={draft.partMeasured}
+            onChange={(v) => setDraft({ ...draft, partMeasured: v })}
           />
         </div>
         <div style={{ width: 110 }}>
@@ -191,8 +191,8 @@ function HeaderManager({
           <Combobox
             category="unit"
             crop={snapshot!.protocol.crop}
-            value={draft.ratingUnit}
-            onChange={(v) => setDraft({ ...draft, ratingUnit: v })}
+            value={draft.measurementUnit}
+            onChange={(v) => setDraft({ ...draft, measurementUnit: v })}
           />
         </div>
         <TimingField

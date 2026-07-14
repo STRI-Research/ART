@@ -2,9 +2,10 @@ import { useEffect } from 'react'
 import { useStore, type ViewId } from './store'
 import { ProtocolView } from './features/protocol/ProtocolView'
 import { SiteView } from './features/site/SiteView'
+import { ApplicationsView } from './features/applications/ApplicationsView'
 import { TrialMapView } from './features/trialmap/TrialMapView'
-import { AssessmentsView } from './features/assessments/AssessmentsView'
-import { DataEntryView } from './features/assessments/DataEntryView'
+import { MeasurementsView } from './features/measurements/MeasurementsView'
+import { DataEntryView } from './features/measurements/DataEntryView'
 import { StatsView } from './features/stats/StatsView'
 import { ReportView } from './features/report/ReportView'
 import { DocumentsView } from './features/documents/DocumentsView'
@@ -26,15 +27,16 @@ interface NavItem {
 // The sidebar is the workflow, ordered by role (a protocol is authored; a trial is implemented).
 // Utilities (Library, Audit) live in the native File menu, not here — keep the sidebar focused.
 const NAV: Record<Role, NavItem[]> = {
-  protocol: [{ id: 'protocol', label: 'Protocol & Assessments' }],
+  protocol: [{ id: 'protocol', label: 'Protocol & Measurements' }],
   trial: [
     { id: 'protocol', label: 'Protocol (locked)' },
-    { id: 'site', label: 'Site & Randomization', step: 1 },
-    { id: 'trialmap', label: 'Trial Map', step: 2, needsTrial: true },
-    { id: 'assessments', label: 'Assessment Columns', step: 3, needsTrial: true, needsLock: true },
-    { id: 'dataentry', label: 'Enter Data', step: 4, needsTrial: true, needsLock: true },
-    { id: 'stats', label: 'Statistics', step: 5, needsTrial: true, needsLock: true },
-    { id: 'report', label: 'Report', step: 6, needsTrial: true, needsLock: true }
+    { id: 'site', label: 'Site', step: 1 },
+    { id: 'trialmap', label: 'Trial Map', step: 2 },
+    { id: 'applications', label: 'Applications', step: 3 },
+    { id: 'measurements', label: 'Measurements', step: 4, needsLock: true },
+    { id: 'dataentry', label: 'Enter Data', step: 5, needsLock: true },
+    { id: 'stats', label: 'Statistics', step: 6, needsLock: true },
+    { id: 'report', label: 'Report', step: 7, needsLock: true }
   ]
 }
 
@@ -56,7 +58,7 @@ function Welcome(): JSX.Element {
       const s = await fn()
       if (s) {
         setSnapshot(s)
-        setView(s.trial ? 'trialmap' : 'site')
+        setView(s.plots.length ? 'trialmap' : 'site')
       }
     })
   }
@@ -73,7 +75,7 @@ function Welcome(): JSX.Element {
         <div className="card">
           <h2>Author a Protocol</h2>
           <p className="muted">
-            Define treatments, design, and the assessment schedule, then distribute the protocol
+            Define treatments, design, and the measurement schedule, then distribute the protocol
             file to trial locations.
           </p>
           <div className="row">
@@ -115,7 +117,7 @@ export default function App(): JSX.Element {
   // Pick a sensible starting view for a freshly opened/created document.
   const applySnapshot = (s: ProjectSnapshot): void => {
     setSnapshot(s)
-    setView(s.role === 'trial' ? (s.trial ? 'trialmap' : 'site') : 'protocol')
+    setView(s.role === 'trial' ? (s.plots.length ? 'trialmap' : 'site') : 'protocol')
   }
 
   const doNewProtocol = (): void =>
@@ -177,16 +179,17 @@ export default function App(): JSX.Element {
   }, [])
 
   const role: Role = snapshot?.role ?? 'protocol'
-  const hasTrial = !!snapshot?.trial
+  const hasLayout = (snapshot?.plots.length ?? 0) > 0
   const layoutLocked = !!snapshot?.trial?.layoutLockedAt
   const nav = NAV[role]
 
   // A workflow step is "done" once its output exists (drives the sidebar's ✓ / step / 🔒 state).
   const stepDone = (id: ViewId): boolean =>
-    (id === 'site' && hasTrial) || (id === 'trialmap' && layoutLocked)
+    (id === 'site' && !!snapshot?.trial?.siteName) ||
+    (id === 'trialmap' && layoutLocked)
 
   const renderNavItem = (n: NavItem): JSX.Element => {
-    const disabled = (n.needsTrial && !hasTrial) || (n.needsLock && !layoutLocked)
+    const disabled = (n.needsTrial && !hasLayout) || (n.needsLock && !layoutLocked)
     const done = stepDone(n.id)
     const title = disabled ? 'Confirm & lock the layout first' : undefined
     const badge = n.step ? (done ? '✓' : disabled ? '🔒' : String(n.step)) : null
@@ -249,8 +252,9 @@ export default function App(): JSX.Element {
             <REnvBanner />
             {view === 'protocol' && <ProtocolView />}
             {view === 'site' && <SiteView />}
+            {view === 'applications' && <ApplicationsView />}
             {view === 'trialmap' && <TrialMapView />}
-            {view === 'assessments' && <AssessmentsView />}
+            {view === 'measurements' && <MeasurementsView />}
             {view === 'dataentry' && <DataEntryView />}
             {view === 'stats' && <StatsView />}
             {view === 'report' && <ReportView />}

@@ -1,10 +1,10 @@
 import { getRole } from './connection.js'
-import { getAssessmentHeader, getTrial } from './dao.js'
+import { getMeasurementHeader, getTrial } from './dao.js'
 import type { Role } from '@shared/types.js'
 
 /**
  * Role guards. A trial file embeds a locked copy of its protocol; the operator may
- * enter data and add their own assessment columns, but may not alter anything the
+ * enter data and add their own measurement columns, but may not alter anything the
  * author defined. These throw so the error surfaces in the renderer via the IPC
  * wrapper. Applied in handlers (not the DAO) so tests can exercise the DAO directly.
  */
@@ -24,13 +24,13 @@ export function assertProtocolEditable(): void {
   assertRole('protocol')
 }
 
-/** Reject edits to a protocol-defined (core) assessment column in a trial file. */
+/** Reject edits to a protocol-defined (core) measurement column in a trial file. */
 export function assertHeaderEditable(headerId: number): void {
-  const h = getAssessmentHeader(headerId)
-  if (!h) throw new Error(`Assessment column ${headerId} does not exist.`)
+  const h = getMeasurementHeader(headerId)
+  if (!h) throw new Error(`Measurement column ${headerId} does not exist.`)
   if (getRole() !== 'trial') return
   if (h.origin === 'core' || h.locked) {
-    throw new Error('This assessment is defined by the protocol and cannot be changed.')
+    throw new Error('This measurement is defined by the protocol and cannot be changed.')
   }
 }
 

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { openProject, closeProject } from './connection.js'
-import { Treatment, AssessmentDef } from '@shared/types.js'
+import { Treatment, MeasurementDef } from '@shared/types.js'
 import * as dao from './dao.js'
 
 let dir: string
@@ -31,8 +31,8 @@ describe('library snapshot + travel', () => {
     dao.replaceTreatments([
       Treatment.parse({ number: 1, name: 'A', applications: [{ rateUnit: 'KG/HA' }] })
     ])
-    dao.replaceAssessmentDefs([
-      AssessmentDef.parse({ partRated: 'PLANT', ratingType: 'yield', ratingUnit: '%', timing: '14 DA-A' })
+    dao.replaceMeasurementDefs([
+      MeasurementDef.parse({ partMeasured: 'PLANT', measurementType: 'yield', measurementUnit: '%', timing: '14 DA-A' })
     ])
     syncSnapshot()
 
@@ -40,8 +40,8 @@ describe('library snapshot + travel', () => {
     expect(got).toEqual(
       [
         'crop:wheat',
-        'part_rated:PLANT',
-        'rating_type:yield',
+        'part_measured:PLANT',
+        'measurement_type:yield',
         'target:aphid',
         'timing:14 DA-A',
         'unit:%',

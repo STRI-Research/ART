@@ -6,11 +6,12 @@ import type {
   Application,
   ApplicationActual,
   Property,
-  AssessmentDef,
+  MeasurementDef,
   Trial,
+  SiteMetadata,
   Plot,
-  AssessmentHeader,
-  AssessmentValue,
+  MeasurementHeader,
+  MeasurementValue,
   LibraryTerm,
   ProjectSnapshot
 } from '@shared/types.js'
@@ -18,8 +19,8 @@ import {
   extractProtocol,
   extractTreatments,
   extractApplications,
-  extractAssessmentDefs,
-  extractAssessmentHeaders,
+  extractMeasurementDefs,
+  extractMeasurementHeaders,
   extractProperties,
   dedupeTerms,
   type TermRef
@@ -233,16 +234,16 @@ export function replaceProperties(
   tx(props)
 }
 
-// --- Assessment definitions (protocol-owned) --------------------------------
-export function listAssessmentDefs(db: Database.Database = getDb()): AssessmentDef[] {
+// --- Measurement definitions (protocol-owned) --------------------------------
+export function listMeasurementDefs(db: Database.Database = getDb()): MeasurementDef[] {
   const rows = db
-    .prepare(`SELECT * FROM assessment_def ORDER BY ordinal, id`)
+    .prepare(`SELECT * FROM measurement_def ORDER BY ordinal, id`)
     .all() as Record<string, unknown>[]
   return rows.map((r) => ({
     id: r.id as number,
-    partRated: r.part_rated as string,
-    ratingType: r.rating_type as string,
-    ratingUnit: r.rating_unit as string,
+    partMeasured: r.part_measured as string,
+    measurementType: r.measurement_type as string,
+    measurementUnit: r.measurement_unit as string,
     applicationRef: (r.application_ref as string) ?? '',
     daysAfter: (r.days_after as number | null) ?? null,
     timing: r.timing as string,
@@ -253,12 +254,12 @@ export function listAssessmentDefs(db: Database.Database = getDb()): AssessmentD
   }))
 }
 
-export function replaceAssessmentDefs(defs: AssessmentDef[], db: Database.Database = getDb()): void {
-  const tx = db.transaction((items: AssessmentDef[]) => {
-    db.prepare('DELETE FROM assessment_def').run()
+export function replaceMeasurementDefs(defs: MeasurementDef[], db: Database.Database = getDb()): void {
+  const tx = db.transaction((items: MeasurementDef[]) => {
+    db.prepare('DELETE FROM measurement_def').run()
     const ins = db.prepare(
-      `INSERT INTO assessment_def (part_rated, rating_type, rating_unit, application_ref, days_after, timing, description, ordinal, analyze, subsamples)
-       VALUES (@partRated, @ratingType, @ratingUnit, @applicationRef, @daysAfter, @timing, @description, @ordinal, @analyze, @subsamples)`
+      `INSERT INTO measurement_def (part_measured, measurement_type, measurement_unit, application_ref, days_after, timing, description, ordinal, analyze, subsamples)
+       VALUES (@partMeasured, @measurementType, @measurementUnit, @applicationRef, @daysAfter, @timing, @description, @ordinal, @analyze, @subsamples)`
     )
     items.forEach((d, i) =>
       ins.run({
@@ -309,7 +310,7 @@ export function replaceTrialWithPlots(
   db: Database.Database = getDb()
 ): number {
   const tx = db.transaction(() => {
-    db.prepare('DELETE FROM trial').run() // cascades to plot / assessment_header / values
+    db.prepare('DELETE FROM trial').run() // cascades to plot / measurement_header / values
     const info = db
       .prepare(
         `INSERT INTO trial (protocol_id, plot_rows, plot_cols, seed,
@@ -327,6 +328,25 @@ export function replaceTrialWithPlots(
     return trialId
   })
   return tx()
+}
+
+/** Create the initial, unrandomized trial row for a new trial file (no layout yet, empty site). */
+export function createEmptyTrial(db: Database.Database = getDb()): number {
+  const info = db
+    .prepare(`INSERT INTO trial (protocol_id, plot_rows, plot_cols, seed) VALUES (1, 0, 0, 0)`)
+    .run()
+  return info.lastInsertRowid as number
+}
+
+/** Update the site metadata columns on the trial row (independent of randomization). */
+export function updateTrialSite(site: SiteMetadata, db: Database.Database = getDb()): void {
+  const existing = getTrial(db)
+  const id = existing?.id ?? createEmptyTrial(db)
+  db.prepare(
+    `UPDATE trial SET site_name=@siteName, operator=@operator, location=@location, city=@city,
+       state=@state, country=@country, planting_date=@plantingDate, trial_notes=@trialNotes
+     WHERE id=@id`
+  ).run({ ...site, id })
 }
 
 export function listPlots(trialId: number, db: Database.Database = getDb()): Plot[] {
@@ -458,42 +478,42 @@ export function reshapeLayout(cols: number, db: Database.Database = getDb()): vo
   tx()
 }
 
-// --- Assessments ------------------------------------------------------------
-export function listAssessmentHeaders(
+// --- Measurements ------------------------------------------------------------
+export function listMeasurementHeaders(
   trialId: number,
   db: Database.Database = getDb()
-): AssessmentHeader[] {
+): MeasurementHeader[] {
   const rows = db
-    .prepare(`SELECT * FROM assessment_header WHERE trial_id = ? ORDER BY ordinal, id`)
+    .prepare(`SELECT * FROM measurement_header WHERE trial_id = ? ORDER BY ordinal, id`)
     .all(trialId) as Record<string, unknown>[]
   return rows.map(mapHeaderRow)
 }
 
-function mapHeaderRow(r: Record<string, unknown>): AssessmentHeader {
+function mapHeaderRow(r: Record<string, unknown>): MeasurementHeader {
   return {
     id: r.id as number,
     trialId: r.trial_id as number,
-    partRated: r.part_rated as string,
-    ratingType: r.rating_type as string,
-    ratingUnit: r.rating_unit as string,
+    partMeasured: r.part_measured as string,
+    measurementType: r.measurement_type as string,
+    measurementUnit: r.measurement_unit as string,
     applicationRef: (r.application_ref as string) ?? '',
     daysAfter: (r.days_after as number | null) ?? null,
     timing: r.timing as string,
     description: r.description as string,
     ordinal: r.ordinal as number,
-    origin: r.origin as AssessmentHeader['origin'],
+    origin: r.origin as MeasurementHeader['origin'],
     locked: !!(r.locked as number),
     analyze: !!(r.analyze as number),
     subsamples: (r.subsamples as number) ?? 1,
     // Event metadata (recorded at data entry):
-    ratingDate: (r.rating_date as string) ?? '',
+    measurementDate: (r.measurement_date as string) ?? '',
     assessedBy: (r.assessed_by as string) ?? '',
     growthStage: (r.growth_stage as string) ?? ''
   }
 }
 
-export function upsertAssessmentHeader(
-  h: AssessmentHeader,
+export function upsertMeasurementHeader(
+  h: MeasurementHeader,
   db: Database.Database = getDb()
 ): number {
   const extra = {
@@ -502,73 +522,73 @@ export function upsertAssessmentHeader(
     subsamples: h.subsamples ?? 1,
     applicationRef: h.applicationRef ?? '',
     daysAfter: h.daysAfter ?? null,
-    ratingDate: h.ratingDate ?? '',
+    measurementDate: h.measurementDate ?? '',
     assessedBy: h.assessedBy ?? '',
     growthStage: h.growthStage ?? ''
   }
   if (h.id) {
     db.prepare(
-      `UPDATE assessment_header SET part_rated=@partRated, rating_type=@ratingType,
-        rating_unit=@ratingUnit, application_ref=@applicationRef, days_after=@daysAfter,
+      `UPDATE measurement_header SET part_measured=@partMeasured, measurement_type=@measurementType,
+        measurement_unit=@measurementUnit, application_ref=@applicationRef, days_after=@daysAfter,
         timing=@timing, description=@description, ordinal=@ordinal, origin=@origin, locked=@locked,
         analyze=@analyze, subsamples=@subsamples,
-        rating_date=@ratingDate, assessed_by=@assessedBy, growth_stage=@growthStage WHERE id=@id`
+        measurement_date=@measurementDate, assessed_by=@assessedBy, growth_stage=@growthStage WHERE id=@id`
     ).run({ ...h, ...extra })
     return h.id
   }
   const info = db
     .prepare(
-      `INSERT INTO assessment_header (trial_id, part_rated, rating_type, rating_unit, application_ref, days_after, timing, description, ordinal, origin, locked, analyze, subsamples, rating_date, assessed_by, growth_stage)
-       VALUES (@trialId, @partRated, @ratingType, @ratingUnit, @applicationRef, @daysAfter, @timing, @description, @ordinal, @origin, @locked, @analyze, @subsamples, @ratingDate, @assessedBy, @growthStage)`
+      `INSERT INTO measurement_header (trial_id, part_measured, measurement_type, measurement_unit, application_ref, days_after, timing, description, ordinal, origin, locked, analyze, subsamples, measurement_date, assessed_by, growth_stage)
+       VALUES (@trialId, @partMeasured, @measurementType, @measurementUnit, @applicationRef, @daysAfter, @timing, @description, @ordinal, @origin, @locked, @analyze, @subsamples, @measurementDate, @assessedBy, @growthStage)`
     )
     .run({ ...h, origin: h.origin ?? 'site', ...extra })
   return info.lastInsertRowid as number
 }
 
 /**
- * Update only the assessment *event* metadata (date performed, who, growth stage) on a header.
+ * Update only the measurement *event* metadata (date performed, who, growth stage) on a header.
  * Allowed on any trial header — including protocol-defined (core, locked) columns — because this is
  * data collection, not editing the definition.
  */
-export function updateAssessmentMetadata(
+export function updateMeasurementMetadata(
   id: number,
-  meta: { ratingDate: string; assessedBy: string; growthStage: string },
+  meta: { measurementDate: string; assessedBy: string; growthStage: string },
   db: Database.Database = getDb()
 ): void {
   db.prepare(
-    `UPDATE assessment_header SET rating_date=@ratingDate, assessed_by=@assessedBy, growth_stage=@growthStage WHERE id=@id`
+    `UPDATE measurement_header SET measurement_date=@measurementDate, assessed_by=@assessedBy, growth_stage=@growthStage WHERE id=@id`
   ).run({ id, ...meta })
 }
 
 /** Look up a single header (used by guards to check origin before mutating). */
-export function getAssessmentHeader(
+export function getMeasurementHeader(
   id: number,
   db: Database.Database = getDb()
-): AssessmentHeader | null {
-  const r = db.prepare(`SELECT * FROM assessment_header WHERE id = ?`).get(id) as
+): MeasurementHeader | null {
+  const r = db.prepare(`SELECT * FROM measurement_header WHERE id = ?`).get(id) as
     | Record<string, unknown>
     | undefined
   return r ? mapHeaderRow(r) : null
 }
 
-export function deleteAssessmentHeader(id: number, db: Database.Database = getDb()): void {
-  db.prepare('DELETE FROM assessment_header WHERE id = ?').run(id)
+export function deleteMeasurementHeader(id: number, db: Database.Database = getDb()): void {
+  db.prepare('DELETE FROM measurement_header WHERE id = ?').run(id)
 }
 
-export function listAssessmentValues(
+export function listMeasurementValues(
   trialId: number,
   db: Database.Database = getDb()
-): AssessmentValue[] {
+): MeasurementValue[] {
   const rows = db
     .prepare(
-      `SELECT av.assessment_header_id, av.plot_id, av.subsample, av.value
-       FROM assessment_value av
+      `SELECT av.measurement_header_id, av.plot_id, av.subsample, av.value
+       FROM measurement_value av
        JOIN plot p ON p.id = av.plot_id
        WHERE p.trial_id = ?`
     )
     .all(trialId) as Record<string, unknown>[]
   return rows.map((r) => ({
-    assessmentHeaderId: r.assessment_header_id as number,
+    measurementHeaderId: r.measurement_header_id as number,
     plotId: r.plot_id as number,
     subsample: (r.subsample as number) ?? 1,
     value: r.value as number | null
@@ -576,54 +596,54 @@ export function listAssessmentValues(
 }
 
 /** Read one subsample cell's current value (null if unset). Used to capture old→new for audit. */
-export function getAssessmentValue(
-  assessmentHeaderId: number,
+export function getMeasurementValue(
+  measurementHeaderId: number,
   plotId: number,
   subsample: number,
   db: Database.Database = getDb()
 ): number | null {
   const r = db
     .prepare(
-      `SELECT value FROM assessment_value WHERE assessment_header_id = ? AND plot_id = ? AND subsample = ?`
+      `SELECT value FROM measurement_value WHERE measurement_header_id = ? AND plot_id = ? AND subsample = ?`
     )
-    .get(assessmentHeaderId, plotId, subsample) as { value: number | null } | undefined
+    .get(measurementHeaderId, plotId, subsample) as { value: number | null } | undefined
   return r ? r.value : null
 }
 
 /** Set (or clear) one subsample cell. A null value deletes the row. */
-export function setAssessmentValue(v: AssessmentValue, db: Database.Database = getDb()): void {
+export function setMeasurementValue(v: MeasurementValue, db: Database.Database = getDb()): void {
   const subsample = v.subsample ?? 1
   if (v.value === null || Number.isNaN(v.value)) {
     db.prepare(
-      'DELETE FROM assessment_value WHERE assessment_header_id = ? AND plot_id = ? AND subsample = ?'
-    ).run(v.assessmentHeaderId, v.plotId, subsample)
+      'DELETE FROM measurement_value WHERE measurement_header_id = ? AND plot_id = ? AND subsample = ?'
+    ).run(v.measurementHeaderId, v.plotId, subsample)
     return
   }
   db.prepare(
-    `INSERT INTO assessment_value (assessment_header_id, plot_id, subsample, value)
-     VALUES (@assessmentHeaderId, @plotId, @subsample, @value)
-     ON CONFLICT (assessment_header_id, plot_id, subsample) DO UPDATE SET value = excluded.value`
+    `INSERT INTO measurement_value (measurement_header_id, plot_id, subsample, value)
+     VALUES (@measurementHeaderId, @plotId, @subsample, @value)
+     ON CONFLICT (measurement_header_id, plot_id, subsample) DO UPDATE SET value = excluded.value`
   ).run({ ...v, subsample })
 }
 
 // --- Analysis cache ---------------------------------------------------------
 export function saveAnalysisResult(
-  assessmentHeaderId: number,
+  measurementHeaderId: number,
   engineVersion: string,
   params: unknown,
   result: unknown,
   db: Database.Database = getDb()
 ): void {
   db.prepare(
-    `INSERT INTO analysis_result (assessment_header_id, engine_version, params_json, result_json)
+    `INSERT INTO analysis_result (measurement_header_id, engine_version, params_json, result_json)
      VALUES (?, ?, ?, ?)`
-  ).run(assessmentHeaderId, engineVersion, JSON.stringify(params), JSON.stringify(result))
+  ).run(measurementHeaderId, engineVersion, JSON.stringify(params), JSON.stringify(result))
 }
 
 // --- Create a trial from a protocol -----------------------------------------
 /**
  * Create a new trial file at `destPath` from the protocol at `sourcePath`.
- * The protocol content (metadata, design, treatments, applications, assessment
+ * The protocol content (metadata, design, treatments, applications, measurement
  * defs) is copied verbatim — including protocol_uid/version, the identity used to
  * match the returned trial back to its protocol — and the file is stamped role='trial'
  * so the copy is locked. The trial layout itself is generated later (trial:generate).
@@ -657,13 +677,13 @@ export function createTrialFromProtocol(sourcePath: string, destPath: string): v
   let protocol: Protocol
   let treatments: Treatment[]
   let applications: Application[]
-  let defs: AssessmentDef[]
+  let defs: MeasurementDef[]
   let library: LibraryTerm[]
   try {
     protocol = getProtocol(src)
     treatments = listTreatments(src)
     applications = listApplications(src)
-    defs = listAssessmentDefs(src)
+    defs = listMeasurementDefs(src)
     library = listLibraryTerms(src)
   } finally {
     src.close()
@@ -673,21 +693,25 @@ export function createTrialFromProtocol(sourcePath: string, destPath: string): v
   saveProtocol(protocol, getDb(), protocol.protocolUid)
   replaceTreatments(treatments)
   replaceApplications(applications)
-  replaceAssessmentDefs(defs)
+  replaceMeasurementDefs(defs)
   // The author's vocabulary snapshot travels so the operator sees the same terms/labels.
   replaceLibraryTerms(library)
+  // Create the trial row up front (unrandomized) so Site/Applications can be filled in before the
+  // layout is generated; materialize the core measurement columns onto it.
+  const trialId = createEmptyTrial()
+  materializeCoreHeaders(trialId)
 }
 
-/** Materialize the protocol's core assessment defs as locked headers on a trial. */
+/** Materialize the protocol's core measurement defs as locked headers on a trial. */
 export function materializeCoreHeaders(trialId: number, db: Database.Database = getDb()): void {
-  const defs = listAssessmentDefs(db)
+  const defs = listMeasurementDefs(db)
   defs.forEach((d, i) => {
-    upsertAssessmentHeader(
+    upsertMeasurementHeader(
       {
         trialId,
-        partRated: d.partRated,
-        ratingType: d.ratingType,
-        ratingUnit: d.ratingUnit,
+        partMeasured: d.partMeasured,
+        measurementType: d.measurementType,
+        measurementUnit: d.measurementUnit,
         applicationRef: d.applicationRef,
         daysAfter: d.daysAfter,
         timing: d.timing,
@@ -698,7 +722,7 @@ export function materializeCoreHeaders(trialId: number, db: Database.Database = 
         analyze: d.analyze,
         subsamples: d.subsamples ?? 1,
         // Event metadata (date / assessor / growth stage) is captured at data entry, not here.
-        ratingDate: '',
+        measurementDate: '',
         assessedBy: '',
         growthStage: ''
       },
@@ -739,9 +763,9 @@ export function collectDocumentTerms(db: Database.Database = getDb()): TermRef[]
     ...extractProtocol(getProtocol(db)),
     ...extractTreatments(listTreatments(db)),
     ...extractApplications(listApplications(db)),
-    ...extractAssessmentDefs(listAssessmentDefs(db)),
+    ...extractMeasurementDefs(listMeasurementDefs(db)),
     ...extractProperties(listProperties(db)),
-    ...(trial ? extractAssessmentHeaders(listAssessmentHeaders(trial.id!, db)) : [])
+    ...(trial ? extractMeasurementHeaders(listMeasurementHeaders(trial.id!, db)) : [])
   ]
   return dedupeTerms(refs)
 }
@@ -755,11 +779,11 @@ export function snapshot(db: Database.Database = getDb()): ProjectSnapshot {
     protocol: getProtocol(db),
     treatments: listTreatments(db),
     applications: listApplications(db),
-    assessmentDefs: listAssessmentDefs(db),
+    measurementDefs: listMeasurementDefs(db),
     trial,
     plots: trial ? listPlots(trial.id!, db) : [],
-    assessmentHeaders: trial ? listAssessmentHeaders(trial.id!, db) : [],
-    assessmentValues: trial ? listAssessmentValues(trial.id!, db) : [],
+    measurementHeaders: trial ? listMeasurementHeaders(trial.id!, db) : [],
+    measurementValues: trial ? listMeasurementValues(trial.id!, db) : [],
     applicationActuals: listApplicationActuals(db),
     properties: listProperties(db),
     libraryTerms: listLibraryTerms(db)

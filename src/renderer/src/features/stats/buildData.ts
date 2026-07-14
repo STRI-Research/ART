@@ -9,7 +9,7 @@ export interface Observation {
 }
 
 /**
- * Assemble long-form observations for one assessment header from the snapshot:
+ * Assemble long-form observations for one measurement header from the snapshot:
  * one observation per plot, whose value is the mean of that plot's recorded
  * subsamples (a single measurement is just the mean of one). Plots with no value
  * and excluded plots are omitted. `treatment` is the treatment *number*.
@@ -22,8 +22,8 @@ export function buildObservations(snapshot: ProjectSnapshot, headerId: number): 
     number,
     { sum: number; count: number; rep: number; block: number; treatment: number }
   >()
-  for (const v of snapshot.assessmentValues) {
-    if (v.assessmentHeaderId !== headerId || v.value === null) continue
+  for (const v of snapshot.measurementValues) {
+    if (v.measurementHeaderId !== headerId || v.value === null) continue
     const plot = plotById.get(v.plotId)
     if (!plot || plot.excluded) continue // excluded plots are omitted from analysis
     const treatment = trtNumberById.get(plot.treatmentId)

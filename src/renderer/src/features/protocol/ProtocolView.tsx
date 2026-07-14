@@ -6,7 +6,7 @@ import { ApplicationsEditor } from './ApplicationsEditor'
 import { TreatmentProgram, programSummary } from './TreatmentProgram'
 import { timingLabel } from '@shared/timing'
 import { validateDesign } from '@shared/design'
-import type { Protocol, Treatment, AssessmentDef, DesignType, LibraryCategory } from '@shared/types'
+import type { Protocol, Treatment, MeasurementDef, DesignType, LibraryCategory } from '@shared/types'
 
 export function ProtocolView(): JSX.Element {
   const { snapshot, setSnapshot, setView, run } = useStore()
@@ -121,29 +121,11 @@ export function ProtocolView(): JSX.Element {
 
   return (
     <>
-      {readOnly ? (
+      {readOnly && (
         <div className="banner locked">
           🔒 Protocol locked — this file is a trial instance of protocol{' '}
           <code>{protocol.protocolUid.slice(0, 8) || '—'}</code> v{protocol.protocolVersion}. The
-          treatments, design, and core assessments were set by the author and cannot be changed.
-        </div>
-      ) : (
-        <div className="card cta-row">
-          <div>
-            <strong>Ready to run this protocol?</strong>
-            <p className="muted" style={{ margin: '2px 0 0' }}>
-              Create a trial from it to generate a randomized layout and enter data — all in this
-              session.
-            </p>
-          </div>
-          <button
-            className="primary"
-            onClick={createTrial}
-            disabled={!designValidation.ok}
-            title={designValidation.ok ? undefined : designValidation.error}
-          >
-            Create Trial from this Protocol →
-          </button>
+          treatments, design, and core measurements were set by the author and cannot be changed.
         </div>
       )}
 
@@ -345,30 +327,50 @@ export function ProtocolView(): JSX.Element {
         )}
       </div>
 
-      <CoreAssessments readOnly={readOnly} />
+      <CoreMeasurements readOnly={readOnly} />
+
+      {!readOnly && (
+        <div className="card cta-row">
+          <div>
+            <strong>Ready to run this protocol?</strong>
+            <p className="muted" style={{ margin: '2px 0 0' }}>
+              Create a trial from it to generate a randomized layout and enter data — all in this
+              session.
+            </p>
+          </div>
+          <button
+            className="primary"
+            onClick={createTrial}
+            disabled={!designValidation.ok}
+            title={designValidation.ok ? undefined : designValidation.error}
+          >
+            Create Trial from this Protocol →
+          </button>
+        </div>
+      )}
     </>
   )
 }
 
-/** Author-defined core assessment schedule. Read-only when viewed inside a trial. */
-function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
+/** Author-defined core measurement schedule. Read-only when viewed inside a trial. */
+function CoreMeasurements({ readOnly }: { readOnly: boolean }): JSX.Element {
   const { snapshot, setSnapshot, run } = useStore()
-  const defs = snapshot!.assessmentDefs
+  const defs = snapshot!.measurementDefs
   const applications = snapshot!.applications
   const crop = snapshot!.protocol.crop
   const [draft, setDraft] = useState({
-    partRated: '',
-    ratingType: '',
-    ratingUnit: '',
+    partMeasured: '',
+    measurementType: '',
+    measurementUnit: '',
     applicationRef: '',
     daysAfter: null as number | null,
     timing: '',
     subsamples: 1
   })
 
-  const save = (next: AssessmentDef[]): void => {
-    run('Saving assessments', async () => {
-      await window.art.assessments.saveDefs(next)
+  const save = (next: MeasurementDef[]): void => {
+    run('Saving measurements', async () => {
+      await window.art.measurements.saveDefs(next)
       const s = await window.art.project.snapshot()
       if (s) setSnapshot(s)
     })
@@ -379,20 +381,20 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
     save([
       ...defs,
       {
-        partRated: draft.partRated,
-        ratingType: draft.ratingType,
-        ratingUnit: draft.ratingUnit,
+        partMeasured: draft.partMeasured,
+        measurementType: draft.measurementType,
+        measurementUnit: draft.measurementUnit,
         applicationRef: draft.applicationRef,
         daysAfter: draft.daysAfter,
         timing: draft.timing,
         description:
-          [draft.ratingType, draft.partRated, label].filter(Boolean).join(' ') || 'Assessment',
+          [draft.measurementType, draft.partMeasured, label].filter(Boolean).join(' ') || 'Measurement',
         ordinal: defs.length,
         analyze: true,
         subsamples: Math.max(1, draft.subsamples || 1)
       }
     ])
-    setDraft({ partRated: '', ratingType: '', ratingUnit: '', applicationRef: '', daysAfter: null, timing: '', subsamples: 1 })
+    setDraft({ partMeasured: '', measurementType: '', measurementUnit: '', applicationRef: '', daysAfter: null, timing: '', subsamples: 1 })
   }
 
   const toggleAnalyze = (i: number): void => {
@@ -401,17 +403,17 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
 
   return (
     <div className="card">
-      <h2>Core Assessments</h2>
+      <h2>Core Measurements</h2>
       <p className="muted">
-        The assessment schedule every site must collect. Sites may add their own extra columns but
+        The measurement schedule every site must collect. Sites may add their own extra columns but
         cannot change these.
       </p>
       {defs.length > 0 ? (
         <table className="data" style={{ marginBottom: 12 }}>
           <thead>
             <tr>
-              <th>Rating type</th>
-              <th>Part rated</th>
+              <th>Measurement type</th>
+              <th>Part measured</th>
               <th>Unit</th>
               <th>Timing</th>
               <th style={{ width: 70 }}>Subs</th>
@@ -422,9 +424,9 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
           <tbody>
             {defs.map((d, i) => (
               <tr key={d.id ?? i}>
-                <td>{d.ratingType || '—'}</td>
-                <td>{d.partRated || '—'}</td>
-                <td>{d.ratingUnit || '—'}</td>
+                <td>{d.measurementType || '—'}</td>
+                <td>{d.partMeasured || '—'}</td>
+                <td>{d.measurementUnit || '—'}</td>
                 <td>{timingLabel(d) || '—'}</td>
                 <td className="num">{d.subsamples ?? 1}</td>
                 <td className="num">
@@ -433,7 +435,7 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
                     checked={d.analyze}
                     disabled={readOnly}
                     onChange={() => toggleAnalyze(i)}
-                    title="Include this assessment in ANOVA and the report"
+                    title="Include this measurement in ANOVA and the report"
                   />
                 </td>
                 {!readOnly && (
@@ -448,26 +450,26 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
           </tbody>
         </table>
       ) : (
-        <p className="muted">No core assessments defined{readOnly ? '.' : ' yet.'}</p>
+        <p className="muted">No core measurements defined{readOnly ? '.' : ' yet.'}</p>
       )}
       {!readOnly && (
         <div className="row">
           <div style={{ width: 160 }}>
-            <label>Rating type</label>
+            <label>Measurement type</label>
             <Combobox
-              category="rating_type"
+              category="measurement_type"
               crop={crop}
-              value={draft.ratingType}
-              onChange={(v) => setDraft({ ...draft, ratingType: v })}
+              value={draft.measurementType}
+              onChange={(v) => setDraft({ ...draft, measurementType: v })}
             />
           </div>
           <div style={{ width: 160 }}>
-            <label>Part rated</label>
+            <label>Part measured</label>
             <Combobox
-              category="part_rated"
+              category="part_measured"
               crop={crop}
-              value={draft.partRated}
-              onChange={(v) => setDraft({ ...draft, partRated: v })}
+              value={draft.partMeasured}
+              onChange={(v) => setDraft({ ...draft, partMeasured: v })}
             />
           </div>
           <div style={{ width: 110 }}>
@@ -475,8 +477,8 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
             <Combobox
               category="unit"
               crop={crop}
-              value={draft.ratingUnit}
-              onChange={(v) => setDraft({ ...draft, ratingUnit: v })}
+              value={draft.measurementUnit}
+              onChange={(v) => setDraft({ ...draft, measurementUnit: v })}
             />
           </div>
           <TimingField
@@ -495,7 +497,7 @@ function CoreAssessments({ readOnly }: { readOnly: boolean }): JSX.Element {
             />
           </div>
           <button className="primary" onClick={add}>
-            + Add assessment
+            + Add measurement
           </button>
         </div>
       )}

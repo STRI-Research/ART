@@ -1,7 +1,7 @@
 import { timingLabel } from '@shared/timing'
 import type { Application } from '@shared/types'
 
-/** The anchor state an assessment carries for its timing. */
+/** The anchor state an measurement carries for its timing. */
 export interface TimingValue {
   applicationRef: string
   daysAfter: number | null
@@ -9,7 +9,7 @@ export interface TimingValue {
 }
 
 /**
- * Compact control to time an assessment relative to an application: pick an application, a
+ * Compact control to time an measurement relative to an application: pick an application, a
  * days-after offset, and see the derived label (e.g. "14 DA-A"). A free-text override wins when set.
  */
 export function TimingField({

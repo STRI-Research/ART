@@ -3,7 +3,7 @@
 An open-source **Agricultural Research Tool** — a cross-platform desktop app for planning,
 randomizing, collecting, and analyzing agricultural field trials, covering the full workflow:
 
-**Protocol → randomized Trial → Trial Map → Assessment data → ANOVA → Report.**
+**Protocol → randomized Trial → Trial Map → Measurement data → ANOVA → Report.**
 
 Built with Electron + React + TypeScript, with a SQLite file per project and an embedded **R**
 statistics engine (via the [`agricolae`](https://cran.r-project.org/package=agricolae) package).
@@ -12,19 +12,19 @@ statistics engine (via the [`agricolae`](https://cran.r-project.org/package=agri
 
 - **Protocol editor** — trial metadata, treatment programs (each treatment is an ordered sequence of
   product/rate/timing application lines), and a planned application schedule (A/B/C timings with a
-  target growth stage) that assessments anchor to.
+  target growth stage) that measurements anchor to.
 - **Randomized trial generation** — Randomized Complete Block (RCB), Completely Randomized
   (CRD), and resolvable Incomplete Block (Alpha) designs, generated in R with
   `agricolae::design.rcbd` / `design.crd` / `design.alpha`. Alpha designs split each replicate
   into incomplete blocks of a chosen size k; the protocol editor validates the design live and
   blocks a non-conformant alpha layout before a trial is created and distributed.
 - **Trial map** — visual plot grid with "hot edit" (click two plots to swap treatments).
-- **Assessment setup & data entry** — define assessment columns (rating type, timing anchored to an
-  application + days-after, subsamples) on the Assessments tab, then record measurements on a
-  dedicated Data Entry tab: a spreadsheet-style grid (rows = plots, columns = assessments) with
-  paste-from-clipboard support. Each assessment also captures event metadata at data-entry time — the
+- **Measurement setup & data entry** — define measurement columns (measurement type, timing anchored to an
+  application + days-after, subsamples) on the Measurements tab, then record measurements on a
+  dedicated Data Entry tab: a spreadsheet-style grid (rows = plots, columns = measurements) with
+  paste-from-clipboard support. Each measurement also captures event metadata at data-entry time — the
   date performed, who performed it, and the crop growth stage observed — kept separate from the
-  protocol definition and surfaced on the report alongside that assessment's results.
+  protocol definition and surfaced on the report alongside that measurement's results.
 - **Site details & application conditions** — a generic key/value property editor records ad-hoc
   metadata (soil type, previous crop, weather at spraying, …) against the trial site or a specific
   application, with keys accreting into the coded-field library rather than a fixed wall of columns.
@@ -33,19 +33,19 @@ statistics engine (via the [`agricolae`](https://cran.r-project.org/package=agri
   CV, grand mean, and critical values. Alpha designs use a block-adjusted analysis
   (`agricolae::PBIB.test`, REML with a variance-components fallback) reporting adjusted treatment
   means and separation letters.
-- **Coded-field library** — crop, target, rating type, unit, part rated, growth stage, timing and
+- **Coded-field library** — crop, target, measurement type, unit, part measured, growth stage, timing and
   treatment type are free-type comboboxes backed by a personal library that accretes from use.
-  Suggestions are ranked by the current crop (a crop-specific rating like *awn length* surfaces on
+  Suggestions are ranked by the current crop (a crop-specific measurement like *awn length* surfaces on
   cereals; general ones like *yield* rank broadly). Each protocol carries a snapshot of the terms it
   uses to trial sites, and a Library tab lets you edit, rename, and import/export the vocabulary.
 - **Report** — protocol summary, treatment-means table, and a bar chart with error bars
   (Vega-Lite); export means to CSV or print/save the report as PDF.
 - **Printable documents** — a top-level **Print** menu produces field-ready printouts from the
   trial: a large **field map** (colour-by treatment/rep/block), **plot labels/signs** (N-up, two
-  sizes), **data-collection sheets** (plots in field order × assessment columns, blank or
+  sizes), **data-collection sheets** (plots in field order × measurement columns, blank or
   pre-filled, with a metadata header), a **spray record** (per application: treatments & rates,
   actual date, target/actual growth stage, condition properties), a one-page **trial summary**
-  (metadata, site details, treatments & rates, application schedule, assessment plan, embedded field
+  (metadata, site details, treatments & rates, application schedule, measurement plan, embedded field
   map), and the **report**. Each renders clean via print CSS and exports to PDF.
 
 ## Prerequisites
@@ -107,13 +107,13 @@ src/
     r/       R sidecar: detect.ts, run.ts (JSON stdin/stdout), randomize.R, aov.R, service.ts
     ipc/     typed IPC handlers
   preload/   contextBridge API exposed as window.art (contextIsolation on)
-  renderer/  React UI (features: protocol, trialmap, assessments, stats, report)
+  renderer/  React UI (features: protocol, trialmap, measurements, stats, report)
   shared/    domain types + zod schemas + IPC channel names (single source of truth)
 ```
 
 - The **renderer** has no Node access; every privileged action goes through a typed `window.art.*`
   IPC call to the main process.
-- A **project** is a single `.artdb` SQLite file holding the protocol, trial, plots, assessment
+- A **project** is a single `.artdb` SQLite file holding the protocol, trial, plots, measurement
   data, and cached analysis results.
 - The **R sidecar** is a plain JSON-in / JSON-out child process: the main process writes a request
   on stdin and reads `{ ok, result | error }` on stdout, so the R scripts stay pure and testable.
@@ -121,7 +121,7 @@ src/
 ## Data model
 
 One SQLite file = one project: `protocol` (singleton) · `treatment` · `application` · `trial` ·
-`plot` · `assessment_header` · `assessment_value` (long form) · `analysis_result` (cached R output) ·
+`plot` · `measurement_header` · `measurement_value` (long form) · `analysis_result` (cached R output) ·
 `library_term` (the coded-vocabulary snapshot that travels with the protocol). The author's
 accumulating personal library lives outside the project, in the app's user-data directory. See
 `src/main/db/schema.sql`.
@@ -129,7 +129,7 @@ accumulating personal library lives outside the project, in the app's user-data 
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for the full ARM-vs-ART gap analysis and prioritized plan. The v1.0 MVP
-focuses on two themes — richer **metadata capture** (applications, assessments, site details) and
+focuses on two themes — richer **metadata capture** (applications, measurements, site details) and
 **printing** the labels and documents needed in the field — with product-rate calculations, data
 transformations, multi-trial summaries, and a tablet collector in later tiers. Feature choices are
 governed by the consumer test in [docs/DESIGN-PRINCIPLES.md](docs/DESIGN-PRINCIPLES.md).

@@ -35,22 +35,22 @@ function migrate(db: Database.Database): void {
   const from = row ? Number(row.value) : 0
   if (from >= SCHEMA_VERSION) return
   // v4: applications became the protocol timing plan (add ordinal); a treatment is a *program* of
-  // application lines (new treatment_application table); assessments anchor their timing to an
+  // application lines (new treatment_application table); measurements anchor their timing to an
   // application. New tables (treatment_application, application_actual) come from schema.sql's
   // CREATE TABLE IF NOT EXISTS; only pre-existing tables need column ALTERs here.
   if (from < 4) {
     ensureColumn(db, 'application', 'ordinal', 'ordinal INTEGER NOT NULL DEFAULT 0')
-    for (const t of ['assessment_def', 'assessment_header']) {
+    for (const t of ['measurement_def', 'measurement_header']) {
       ensureColumn(db, t, 'application_ref', "application_ref TEXT NOT NULL DEFAULT ''")
       ensureColumn(db, t, 'days_after', 'days_after INTEGER')
     }
   }
-  // v5: assessment event metadata recorded at data entry (on the trial header, not the definition):
-  // who assessed + crop growth stage observed (the date reuses the existing rating_date column).
+  // v5: measurement event metadata recorded at data entry (on the trial header, not the definition):
+  // who assessed + crop growth stage observed (the date reuses the existing measurement_date column).
   // Plus the generic key/value property mechanism (new table via CREATE TABLE IF NOT EXISTS).
   if (from < 5) {
-    ensureColumn(db, 'assessment_header', 'assessed_by', "assessed_by TEXT NOT NULL DEFAULT ''")
-    ensureColumn(db, 'assessment_header', 'growth_stage', "growth_stage TEXT NOT NULL DEFAULT ''")
+    ensureColumn(db, 'measurement_header', 'assessed_by', "assessed_by TEXT NOT NULL DEFAULT ''")
+    ensureColumn(db, 'measurement_header', 'growth_stage', "growth_stage TEXT NOT NULL DEFAULT ''")
   }
   db.prepare(
     `INSERT INTO meta (key, value) VALUES ('schema_version', ?)

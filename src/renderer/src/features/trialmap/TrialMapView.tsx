@@ -12,6 +12,7 @@ export function TrialMapView(): JSX.Element {
   const protocol = snapshot!.protocol
   const plots = snapshot!.plots
   const locked = !!trial.layoutLockedAt
+  const hasLayout = plots.length > 0
   const isAlpha = protocol.design === 'ALPHA'
 
   const [selected, setSelected] = useState<number | null>(null)
@@ -54,6 +55,22 @@ export function TrialMapView(): JSX.Element {
       legend: vals.map((v, i) => ({ label: `${name} ${v}`, color: categoryColor(i) }))
     }
   }, [colourBy, snapshot, plots])
+
+  // Before a layout exists, the Trial Map is where you randomize — show only that.
+  if (!hasLayout) {
+    return (
+      <>
+        <div className="card">
+          <h2 style={{ margin: 0 }}>Trial Map</h2>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Generate this site&apos;s randomized layout to lay out the plots, then confirm &amp; lock
+            it to begin data entry.
+          </p>
+        </div>
+        <RandomizationCard />
+      </>
+    )
+  }
 
   // Physical grid (mapRow/mapCol).
   const grid: (Plot | null)[][] = Array.from({ length: trial.plotRows }, () =>
@@ -107,7 +124,7 @@ export function TrialMapView(): JSX.Element {
     setConfirmingLock(false)
     run('Locking layout', async () => {
       setSnapshot(await window.art.trial.lockLayout())
-      setView('assessments')
+      setView('measurements')
     })
   }
   const confirmExclude = (): void => {
@@ -188,6 +205,7 @@ export function TrialMapView(): JSX.Element {
   }
 
   return (
+    <>
     <div className="card">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <h2 style={{ margin: 0 }}>
@@ -348,6 +366,68 @@ export function TrialMapView(): JSX.Element {
             </div>
           </div>
         </div>
+      )}
+    </div>
+      {!locked && <RandomizationCard />}
+    </>
+  )
+}
+
+/** Seed + Generate/Regenerate control. Regenerating replaces the layout and clears entered data. */
+function RandomizationCard(): JSX.Element {
+  const { snapshot, setSnapshot, run } = useStore()
+  const trial = snapshot!.trial
+  const protocol = snapshot!.protocol
+  const plots = snapshot!.plots
+  const locked = !!trial?.layoutLockedAt
+  const hasLayout = plots.length > 0
+  const treatmentCount = snapshot!.treatments.length
+  const canGenerate = treatmentCount >= 2
+  const [seedText, setSeedText] = useState(trial && trial.seed ? String(trial.seed) : '')
+
+  const generate = (): void => {
+    // Blank or non-integer text = random seed; never forward NaN (R would receive NA).
+    const parsed = Number(seedText)
+    const seed = seedText.trim() === '' || !Number.isInteger(parsed) ? undefined : parsed
+    run('Generating randomized trial', async () =>
+      setSnapshot(await window.art.trial.generate({ seed }))
+    )
+  }
+
+  return (
+    <div className="card">
+      <h2>Randomization</h2>
+      <p className="muted">
+        Design is fixed by the protocol:{' '}
+        <strong>
+          {protocol.design}, {protocol.replicates} replicates
+        </strong>{' '}
+        (from protocol — locked). This site generates its own randomized layout.
+      </p>
+      {hasLayout && !locked && (
+        <div className="banner">
+          A layout already exists for this site (seed {trial!.seed}). Regenerating replaces it and
+          clears any entered data.
+        </div>
+      )}
+      <div className="row">
+        <div style={{ width: 200 }}>
+          <label>Seed (blank = random)</label>
+          <input
+            type="number"
+            placeholder="random"
+            value={seedText}
+            disabled={locked}
+            onChange={(e) => setSeedText(e.target.value)}
+          />
+        </div>
+        <button className="primary" disabled={!canGenerate || locked} onClick={generate}>
+          {hasLayout ? 'Regenerate' : 'Generate'} layout ({treatmentCount * protocol.replicates}{' '}
+          plots)
+        </button>
+      </div>
+      {treatmentCount < 2 && (
+        <p className="muted">The protocol must define at least 2 treatments.</p>
       )}
     </div>
   )

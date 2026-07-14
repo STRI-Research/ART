@@ -13,13 +13,13 @@ const FIELDS: { key: keyof SiteMetadata; label: string; width?: number }[] = [
   { key: 'plantingDate', label: 'Planting date', width: 160 }
 ]
 
-/** Trial-only view: capture site metadata and generate this site's own randomization. */
+/** Trial-only view: capture this site's metadata. Saved independently of randomization (the trial
+ *  record exists up front), so it can be filled in before generating the layout. */
 export function SiteView(): JSX.Element {
-  const { snapshot, setSnapshot, setView, run } = useStore()
-  const protocol = snapshot!.protocol
+  const { snapshot, setSnapshot, run } = useStore()
   const trial = snapshot!.trial
 
-  const initial: SiteMetadata = {
+  const [site, setSite] = useState<SiteMetadata>({
     siteName: trial?.siteName ?? '',
     operator: trial?.operator ?? '',
     location: trial?.location ?? '',
@@ -28,37 +28,11 @@ export function SiteView(): JSX.Element {
     country: trial?.country ?? '',
     plantingDate: trial?.plantingDate ?? '',
     trialNotes: trial?.trialNotes ?? ''
-  }
-  const [site, setSite] = useState<SiteMetadata>(initial)
-  const [seedText, setSeedText] = useState(trial ? String(trial.seed) : '')
+  })
 
-  const applications = snapshot!.applications
-  const actualDate = (code: string): string =>
-    snapshot!.applicationActuals.find((a) => a.timingCode === code)?.actualDate ?? ''
-  const setActualDate = (code: string, date: string): void => {
-    const others = snapshot!.applicationActuals.filter((a) => a.timingCode !== code)
-    run('Recording application date', async () =>
-      setSnapshot(
-        await window.art.trial.saveApplicationActuals([
-          ...others.map((a) => ({ timingCode: a.timingCode, actualDate: a.actualDate })),
-          { timingCode: code, actualDate: date }
-        ])
-      )
-    )
-  }
-
-  const treatmentCount = snapshot!.treatments.length
-  const canGenerate = treatmentCount >= 2
-
-  const generate = (): void => {
-    // Blank or non-integer text = random seed; never forward NaN (R would receive NA).
-    const parsed = Number(seedText)
-    const seed = seedText.trim() === '' || !Number.isInteger(parsed) ? undefined : parsed
-    run('Generating randomized trial', async () => {
-      const next = await window.art.trial.generate({ ...site, seed })
-      setSnapshot(next)
-      setView('trialmap')
-    })
+  // Persist on blur so a field commits when the user moves on (no explicit Save needed).
+  const persist = (next: SiteMetadata): void => {
+    run('Saving site information', async () => setSnapshot(await window.art.trial.saveSite(next)))
   }
 
   return (
@@ -75,6 +49,7 @@ export function SiteView(): JSX.Element {
               <input
                 value={site[f.key]}
                 onChange={(e) => setSite({ ...site, [f.key]: e.target.value })}
+                onBlur={() => persist(site)}
               />
             </div>
           ))}
@@ -84,6 +59,7 @@ export function SiteView(): JSX.Element {
               rows={2}
               value={site.trialNotes}
               onChange={(e) => setSite({ ...site, trialNotes: e.target.value })}
+              onBlur={() => persist(site)}
             />
           </div>
         </div>
@@ -96,90 +72,6 @@ export function SiteView(): JSX.Element {
           printed trial documents. Anything free-form can also go in Trial notes above.
         </p>
         <PropertyList scope="trial" addLabel="+ Add detail" />
-      </div>
-
-      {applications.length > 0 && (
-        <div className="card">
-          <h2>Applications</h2>
-          <p className="muted">
-            When each protocol application actually happened at this site (assessment dates timed
-            &quot;N days after&quot; derive from these), and the conditions it was made under.
-          </p>
-          {applications.map((a) => (
-            <div key={a.id ?? a.timingCode} className="appl-record">
-              <div className="row" style={{ alignItems: 'flex-end', gap: 12 }}>
-                <div style={{ width: 130 }}>
-                  <label>
-                    Application {a.timingCode}
-                    {a.targetGrowthStage ? ` · ${a.targetGrowthStage}` : ''}
-                  </label>
-                  <input
-                    type="date"
-                    value={actualDate(a.timingCode)}
-                    onChange={(e) => setActualDate(a.timingCode, e.target.value)}
-                  />
-                </div>
-                {a.description && <span className="muted">{a.description}</span>}
-              </div>
-              <div style={{ marginTop: 8 }}>
-                <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
-                  Conditions
-                </div>
-                <PropertyList
-                  scope="application"
-                  scopeRef={a.timingCode}
-                  addLabel="+ Add condition"
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="card">
-        <h2>Randomization</h2>
-        <p className="muted">
-          Design is fixed by the protocol:{' '}
-          <strong>
-            {protocol.design}, {protocol.replicates} replicates
-          </strong>{' '}
-          (from protocol — locked). This site generates its own randomized layout.
-        </p>
-        {trial?.layoutLockedAt ? (
-          <div className="banner locked">
-            🔒 Layout locked {new Date(trial.layoutLockedAt).toLocaleString()} — the randomization is
-            final and can no longer be regenerated.
-          </div>
-        ) : (
-          trial && (
-            <div className="banner">
-              A layout already exists for this site (seed {trial.seed}). Regenerating replaces it and
-              clears any entered data.
-            </div>
-          )
-        )}
-        <div className="row">
-          <div style={{ width: 200 }}>
-            <label>Seed (blank = random)</label>
-            <input
-              type="number"
-              placeholder="random"
-              value={seedText}
-              disabled={!!trial?.layoutLockedAt}
-              onChange={(e) => setSeedText(e.target.value)}
-            />
-          </div>
-          <button
-            className="primary"
-            disabled={!canGenerate || !!trial?.layoutLockedAt}
-            onClick={generate}
-          >
-            {trial ? 'Regenerate' : 'Generate'} layout ({treatmentCount * protocol.replicates} plots)
-          </button>
-        </div>
-        {treatmentCount < 2 && (
-          <p className="muted">The protocol must define at least 2 treatments.</p>
-        )}
       </div>
     </>
   )

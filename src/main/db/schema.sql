@@ -1,6 +1,6 @@
 -- ART schema. One SQLite file is either a PROTOCOL (authored template) or a
 -- TRIAL (a locally implemented instance of a protocol). meta.role selects which.
---   protocol file: protocol + treatment + application + assessment_def (no trial/plots)
+--   protocol file: protocol + treatment + application + measurement_def (no trial/plots)
 --   trial file:    a locked copy of the protocol tables + one trial + plots + data
 PRAGMA foreign_keys = ON;
 
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 
 -- The protocol definition. Owns the experimental design (design/replicates/plot
--- dimensions) and the core assessment schedule. In a trial file this is a locked
+-- dimensions) and the core measurement schedule. In a trial file this is a locked
 -- copy of the source protocol; protocol_uid/version identify which protocol it came
 -- from so returned trials can be matched back to the author's protocol.
 CREATE TABLE IF NOT EXISTS protocol (
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS protocol (
   plot_length      REAL NOT NULL DEFAULT 0
 );
 
--- Snapshot of the coded terms this document references (crop, rating types, units, …).
+-- Snapshot of the coded terms this document references (crop, measurement types, units, …).
 -- Populated as coded fields are saved and copied into a trial by createTrialFromProtocol, so
 -- the author's vocabulary (values + labels) travels to the operator on any machine. The author's
 -- accumulating *personal* library lives outside the project file (app userData).
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS treatment_application (
 CREATE INDEX IF NOT EXISTS idx_trtappl_treatment ON treatment_application(treatment_id);
 
 -- Protocol-defined applications (the *plan*): ordered A/B/C… events, each a timing code + intended
--- crop growth stage. Assessments anchor their timing to these (assessment_def.application_ref). The
+-- crop growth stage. Measurements anchor their timing to these (measurement_def.application_ref). The
 -- actual date each happened is trial-side (application_actual) — one protocol serves many sites.
 CREATE TABLE IF NOT EXISTS application (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,18 +103,18 @@ CREATE TABLE IF NOT EXISTS property (
 );
 CREATE INDEX IF NOT EXISTS idx_property_scope ON property(scope, scope_ref);
 
--- Core assessment definitions authored in the protocol. In a trial file these are
--- materialized into assessment_header (origin='core', locked=1) when the layout is
+-- Core measurement definitions authored in the protocol. In a trial file these are
+-- materialized into measurement_header (origin='core', locked=1) when the layout is
 -- generated, so operators can enter values but not edit/remove them.
-CREATE TABLE IF NOT EXISTS assessment_def (
+CREATE TABLE IF NOT EXISTS measurement_def (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  part_rated  TEXT NOT NULL DEFAULT '',
-  rating_type TEXT NOT NULL DEFAULT '',
-  rating_unit TEXT NOT NULL DEFAULT '',
+  part_measured  TEXT NOT NULL DEFAULT '',
+  measurement_type TEXT NOT NULL DEFAULT '',
+  measurement_unit TEXT NOT NULL DEFAULT '',
   application_ref TEXT NOT NULL DEFAULT '', -- anchored application's timing code ('' = unanchored)
   days_after  INTEGER,                      -- offset from the anchored application (NULL = unanchored)
   timing      TEXT NOT NULL DEFAULT '',     -- free-text timing override (wins over the derived label)
-  rating_date TEXT NOT NULL DEFAULT '',     -- legacy (unused); assessment event date lives on the header
+  measurement_date TEXT NOT NULL DEFAULT '',     -- legacy (unused); measurement event date lives on the header
   description TEXT NOT NULL DEFAULT '',
   ordinal     INTEGER NOT NULL DEFAULT 0,
   analyze     INTEGER NOT NULL DEFAULT 1, -- include in ANOVA / report
@@ -156,14 +156,14 @@ CREATE TABLE IF NOT EXISTS plot (
 );
 CREATE INDEX IF NOT EXISTS idx_plot_trial ON plot(trial_id);
 
--- Assessment columns for a trial. origin distinguishes protocol-defined 'core'
--- columns (locked=1, mirror of assessment_def) from operator-added 'site' columns.
-CREATE TABLE IF NOT EXISTS assessment_header (
+-- Measurement columns for a trial. origin distinguishes protocol-defined 'core'
+-- columns (locked=1, mirror of measurement_def) from operator-added 'site' columns.
+CREATE TABLE IF NOT EXISTS measurement_header (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   trial_id    INTEGER NOT NULL REFERENCES trial(id) ON DELETE CASCADE,
-  part_rated  TEXT NOT NULL DEFAULT '',
-  rating_type TEXT NOT NULL DEFAULT '',
-  rating_unit TEXT NOT NULL DEFAULT '',
+  part_measured  TEXT NOT NULL DEFAULT '',
+  measurement_type TEXT NOT NULL DEFAULT '',
+  measurement_unit TEXT NOT NULL DEFAULT '',
   application_ref TEXT NOT NULL DEFAULT '', -- anchored application's timing code ('' = unanchored)
   days_after  INTEGER,                      -- offset from the anchored application (NULL = unanchored)
   timing      TEXT NOT NULL DEFAULT '',     -- free-text timing override (wins over the derived label)
@@ -174,23 +174,23 @@ CREATE TABLE IF NOT EXISTS assessment_header (
   analyze     INTEGER NOT NULL DEFAULT 1, -- include in ANOVA / report
   subsamples  INTEGER NOT NULL DEFAULT 1, -- measurements recorded per plot (>1 = averaged)
   -- Event metadata, recorded at data entry (not authoring):
-  rating_date  TEXT NOT NULL DEFAULT '',   -- date the assessment was performed
+  measurement_date  TEXT NOT NULL DEFAULT '',   -- date the measurement was performed
   assessed_by  TEXT NOT NULL DEFAULT '',   -- who performed it
   growth_stage TEXT NOT NULL DEFAULT ''    -- crop growth stage observed
 );
-CREATE INDEX IF NOT EXISTS idx_header_trial ON assessment_header(trial_id);
+CREATE INDEX IF NOT EXISTS idx_header_trial ON measurement_header(trial_id);
 
-CREATE TABLE IF NOT EXISTS assessment_value (
-  assessment_header_id INTEGER NOT NULL REFERENCES assessment_header(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS measurement_value (
+  measurement_header_id INTEGER NOT NULL REFERENCES measurement_header(id) ON DELETE CASCADE,
   plot_id              INTEGER NOT NULL REFERENCES plot(id) ON DELETE CASCADE,
   subsample            INTEGER NOT NULL DEFAULT 1, -- 1-based; 1 = the single/default measurement
   value                REAL,
-  PRIMARY KEY (assessment_header_id, plot_id, subsample)
+  PRIMARY KEY (measurement_header_id, plot_id, subsample)
 );
 
 CREATE TABLE IF NOT EXISTS analysis_result (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-  assessment_header_id INTEGER NOT NULL REFERENCES assessment_header(id) ON DELETE CASCADE,
+  measurement_header_id INTEGER NOT NULL REFERENCES measurement_header(id) ON DELETE CASCADE,
   engine_version       TEXT NOT NULL DEFAULT '',
   params_json          TEXT NOT NULL DEFAULT '{}',
   result_json          TEXT NOT NULL DEFAULT '{}',
@@ -205,8 +205,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
   ts      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), -- UTC ISO
   actor   TEXT NOT NULL DEFAULT '',   -- OS username
   role    TEXT NOT NULL DEFAULT '',   -- protocol | trial at time of change
-  action  TEXT NOT NULL DEFAULT '',   -- machine code, e.g. assessment.value.set
-  entity  TEXT NOT NULL DEFAULT '',   -- subject, e.g. assessment_value
+  action  TEXT NOT NULL DEFAULT '',   -- machine code, e.g. measurement.value.set
+  entity  TEXT NOT NULL DEFAULT '',   -- subject, e.g. measurement_value
   summary TEXT NOT NULL DEFAULT '',   -- human-readable one-liner incl. old -> new
   detail  TEXT NOT NULL DEFAULT '{}'  -- JSON: structured old/new/context
 );
