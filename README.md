@@ -8,6 +8,15 @@ randomizing, collecting, and analyzing agricultural field trials, covering the f
 Built with Electron + React + TypeScript, with a SQLite file per project and an embedded **R**
 statistics engine (via the [`agricolae`](https://cran.r-project.org/package=agricolae) package).
 
+## Screenshots
+
+|  |  |
+| :--: | :--: |
+| **Trial map** — visual plot grid, colour-by treatment/rep/block, with click-to-swap hot editing. | **Data entry** — one row per plot; calculated columns (ƒ) derive live from other measurements. |
+| ![Trial map](docs/screenshots/trial-map.png) | ![Data entry](docs/screenshots/data-entry.png) |
+| **Statistics** — ANOVA with mean-comparison letters (Fisher's LSD / Tukey / Duncan / SNK). | **Report** — protocol summary, treatment programs, and per-measurement analysis. |
+| ![Statistics](docs/screenshots/statistics.png) | ![Report](docs/screenshots/report.png) |
+
 ## Features (MVP)
 
 - **Protocol editor** — trial metadata, treatment programs (each treatment is an ordered sequence of
