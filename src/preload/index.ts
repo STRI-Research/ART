@@ -118,7 +118,8 @@ const api = {
   env: {
     detectR: (): Promise<REnvStatus> => ipcRenderer.invoke(IPC.envDetectR),
     setRscriptPath: (p: string): Promise<REnvStatus> =>
-      ipcRenderer.invoke(IPC.envSetRscriptPath, p)
+      ipcRenderer.invoke(IPC.envSetRscriptPath, p),
+    installRPackages: (): Promise<REnvStatus> => ipcRenderer.invoke(IPC.envInstallRPackages)
   }
 }
 

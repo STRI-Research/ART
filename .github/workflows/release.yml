@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Allow the workflow to create/upload to the GitHub Release for the tag.
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # postinstall runs `electron-builder install-app-deps`, rebuilding
+      # better-sqlite3 for the Electron ABI — correct for packaging.
+      - run: npm ci
+
+      # Build the renderer/main/preload, then package + publish the AppImage
+      # and its latest-linux.yml update manifest to the GitHub Release.
+      - run: npm run build
+      - run: npx electron-builder --linux --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
