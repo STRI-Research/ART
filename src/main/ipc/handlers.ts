@@ -35,7 +35,7 @@ import {
 
 const PROTO_FILTER = { name: 'ART Protocol', extensions: ['artproto'] }
 const TRIAL_FILTER = { name: 'ART Trial', extensions: ['arttrial'] }
-import { detectR } from '../r/detect.js'
+import { detectR, installRPackages } from '../r/detect.js'
 import { setRscriptPath } from '../r/run.js'
 import { randomize, runAov, ENGINE_VERSION } from '../r/service.js'
 
@@ -649,4 +649,5 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     setRscriptPath(z.string().parse(p))
     return detectR()
   })
+  handle(IPC.envInstallRPackages, () => installRPackages())
 }

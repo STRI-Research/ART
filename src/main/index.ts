@@ -1,10 +1,14 @@
 import { app, shell, BrowserWindow, Menu } from 'electron'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import electronUpdater from 'electron-updater'
 import { registerIpc } from './ipc/handlers.js'
 import { buildMenu } from './menu.js'
 import { closeProject } from './db/connection.js'
 import * as library from './library/store.js'
+
+// electron-updater is CommonJS; destructure the default export for ESM interop.
+const { autoUpdater } = electronUpdater
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -48,6 +52,16 @@ app.whenReady().then(() => {
   registerIpc(() => mainWindow)
   createWindow()
   if (mainWindow) Menu.setApplicationMenu(buildMenu(mainWindow))
+
+  // Check GitHub Releases for a newer AppImage and download it in the
+  // background, prompting to restart when ready. Only in a packaged build.
+  // Updates are best-effort: swallow rejections (offline, no releases yet, …)
+  // so they never surface as unhandled promise rejections.
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {
+      // ignore — updates are best-effort
+    })
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -56,7 +56,8 @@ export const IPC = {
 
   // Environment / R
   envDetectR: 'env:detectR',
-  envSetRscriptPath: 'env:setRscriptPath'
+  envSetRscriptPath: 'env:setRscriptPath',
+  envInstallRPackages: 'env:installRPackages'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

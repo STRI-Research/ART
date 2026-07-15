@@ -25,3 +25,8 @@ mac:
 linux:
   target: AppImage
   category: Science
+  icon: build/icon.png
+publish:
+  provider: github
+  owner: charles-gentry
+  repo: ART

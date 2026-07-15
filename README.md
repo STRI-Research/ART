@@ -63,8 +63,10 @@ statistics engine (via the [`agricolae`](https://cran.r-project.org/package=agri
   ```
 
   `Rscript` must be on your `PATH`, or set a custom path in the app's setup banner (or the
-  `ART_RSCRIPT` environment variable). The app runs without R, but trial generation and
-  analysis are disabled until R is available.
+  `ART_RSCRIPT` environment variable). Once base R is present, the app's setup banner offers a
+  one-click **"Install required R packages"** button that installs `agricolae` + `jsonlite` for you
+  — no need to open R yourself. The app runs without R, but trial generation and analysis are
+  disabled until it's available.
 
 ## Development
 
@@ -93,15 +95,41 @@ npm test                 # run vitest
 npm run rebuild:electron # restore the Electron build (before npm run dev)
 ```
 
-## Packaging
+## Download & install (Linux)
+
+ART ships as a self-contained **AppImage** from the
+[Releases](https://github.com/charles-gentry/ART/releases) page — no installer, no admin rights:
 
 ```bash
-npm run package   # unpacked app in dist-app/
-npm run dist      # installer (NSIS / dmg / AppImage) via electron-builder
+chmod +x ART-*.AppImage   # make it executable
+./ART-*.AppImage          # run it
 ```
 
-The `.R` scripts are shipped as `extraResources`; R itself is a documented prerequisite and is not
-bundled.
+The app **auto-updates**: on launch it checks Releases for a newer version and downloads it in the
+background, prompting you to restart when it's ready.
+
+The only external requirement is **R** (for the statistics engine). Install base R once from
+[r-project.org](https://www.r-project.org/), then let the app's setup banner install the
+`agricolae` + `jsonlite` packages for you (see [Prerequisites](#prerequisites)).
+
+### Building & releasing
+
+```bash
+npm run package   # unpacked app in dist-app/ (for local testing)
+npm run dist      # build an AppImage locally, no publish
+```
+
+The `.R` scripts are shipped as `extraResources`; R itself is a prerequisite and is not bundled.
+The app icon lives at `build/icon.png` — replace it with a real logo before a public release.
+
+To cut a release: bump `version` in `package.json`, then tag and push:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The `Release` GitHub Actions workflow builds the AppImage and publishes it (plus the
+`latest-linux.yml` update manifest) to the GitHub Release for that tag.
 
 ## Architecture
 
