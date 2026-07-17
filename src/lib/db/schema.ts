@@ -12,64 +12,10 @@ import {
 } from 'drizzle-orm/pg-core'
 
 // ---------------------------------------------------------------------------
-// Auth (NextAuth adapter tables)
-// ---------------------------------------------------------------------------
-export const users = pgTable('user', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text('name'),
-  email: text('email').unique(),
-  emailVerified: timestamp('emailVerified', { mode: 'date' }),
-  image: text('image'),
-})
-
-export const accounts = pgTable(
-  'account',
-  {
-    userId: text('userId')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    type: text('type').notNull(),
-    provider: text('provider').notNull(),
-    providerAccountId: text('providerAccountId').notNull(),
-    refresh_token: text('refresh_token'),
-    access_token: text('access_token'),
-    expires_at: integer('expires_at'),
-    token_type: text('token_type'),
-    scope: text('scope'),
-    id_token: text('id_token'),
-    session_state: text('session_state'),
-  },
-  (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })]
-)
-
-export const sessions = pgTable('session', {
-  sessionToken: text('sessionToken').primaryKey(),
-  userId: text('userId')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  expires: timestamp('expires', { mode: 'date' }).notNull(),
-})
-
-export const verificationTokens = pgTable(
-  'verificationToken',
-  {
-    identifier: text('identifier').notNull(),
-    token: text('token').notNull(),
-    expires: timestamp('expires', { mode: 'date' }).notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.identifier, t.token] })]
-)
-
-// ---------------------------------------------------------------------------
 // Protocol
 // ---------------------------------------------------------------------------
 export const protocol = pgTable('protocol', {
   id: serial('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
   protocolUid: text('protocol_uid').notNull().default(''),
   protocolVersion: integer('protocol_version').notNull().default(1),
   title: text('title').notNull().default(''),
@@ -162,9 +108,6 @@ export const measurementDef = pgTable('measurement_def', {
 // ---------------------------------------------------------------------------
 export const trial = pgTable('trial', {
   id: serial('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
   protocolId: integer('protocol_id')
     .notNull()
     .references(() => protocol.id, { onDelete: 'cascade' }),
@@ -332,20 +275,17 @@ export const auditLog = pgTable('audit_log', {
 })
 
 // ---------------------------------------------------------------------------
-// Library terms (per-user curated vocabulary)
+// Library terms (curated vocabulary)
 // ---------------------------------------------------------------------------
 export const libraryTerm = pgTable(
   'library_term',
   {
     id: serial('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
     category: text('category').notNull(),
     value: text('value').notNull(),
     label: text('label').notNull().default(''),
     useCount: integer('use_count').notNull().default(0),
     crops: text('crops').notNull().default(''),
   },
-  (t) => [uniqueIndex('libterm_user_cat_val').on(t.userId, t.category, t.value)]
+  (t) => [uniqueIndex('libterm_cat_val').on(t.category, t.value)]
 )

@@ -7,32 +7,25 @@ import {
   application,
   measurementDef,
 } from '@/lib/db/schema'
-import { eq, and, asc } from 'drizzle-orm'
-import { auth } from '@/lib/auth'
-import { unauthorized, badRequest } from '@/lib/auth/session'
+import { eq, asc } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
 type Ctx = { params: Promise<{ id: string }> }
 
-async function protocolById(userId: string, id: number) {
-  const db = getDb()
-  const [row] = await db
-    .select()
-    .from(protocol)
-    .where(and(eq(protocol.id, id), eq(protocol.userId, userId)))
-  return row ?? null
+function badRequest(msg: string) {
+  return NextResponse.json({ error: msg }, { status: 400 })
 }
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
-  const session = await auth()
-  if (!session?.user?.id) return unauthorized()
-
   const { id } = await ctx.params
-  const proto = await protocolById(session.user.id, Number(id))
-  if (!proto) return badRequest('Protocol not found')
-
   const db = getDb()
+
+  const [proto] = await db
+    .select()
+    .from(protocol)
+    .where(eq(protocol.id, Number(id)))
+  if (!proto) return badRequest('Protocol not found')
 
   const treatments = await db
     .select()
@@ -83,14 +76,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 }
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
-  const session = await auth()
-  if (!session?.user?.id) return unauthorized()
-
   const { id } = await ctx.params
-  const proto = await protocolById(session.user.id, Number(id))
+  const db = getDb()
+
+  const [proto] = await db
+    .select()
+    .from(protocol)
+    .where(eq(protocol.id, Number(id)))
   if (!proto) return badRequest('Protocol not found')
 
-  const db = getDb()
   const body = await req.json()
 
   const [updated] = await db
@@ -117,14 +111,15 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
-  const session = await auth()
-  if (!session?.user?.id) return unauthorized()
-
   const { id } = await ctx.params
-  const proto = await protocolById(session.user.id, Number(id))
+  const db = getDb()
+
+  const [proto] = await db
+    .select()
+    .from(protocol)
+    .where(eq(protocol.id, Number(id)))
   if (!proto) return badRequest('Protocol not found')
 
-  const db = getDb()
   await db.delete(protocol).where(eq(protocol.id, proto.id))
   return NextResponse.json({ ok: true })
 }

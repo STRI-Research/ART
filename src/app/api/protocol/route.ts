@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { protocol, treatment } from '@/lib/db/schema'
-import { eq, sql, desc } from 'drizzle-orm'
-import { auth } from '@/lib/auth'
-import { unauthorized } from '@/lib/auth/session'
+import { sql, desc } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user?.id) return unauthorized()
-
   const db = getDb()
   const rows = await db
     .select({
@@ -26,24 +21,17 @@ export async function GET() {
       )`,
     })
     .from(protocol)
-    .where(eq(protocol.userId, session.user.id))
     .orderBy(desc(protocol.updatedAt))
 
   return NextResponse.json(rows)
 }
 
 export async function POST() {
-  const session = await auth()
-  if (!session?.user?.id) return unauthorized()
-
   const db = getDb()
   const uid = crypto.randomUUID()
   const [row] = await db
     .insert(protocol)
-    .values({
-      userId: session.user.id,
-      protocolUid: uid,
-    })
+    .values({ protocolUid: uid })
     .returning()
 
   return NextResponse.json({

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { SessionProvider } from '@/components/SessionProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -27,9 +26,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: bypassStripper }} />
       </head>
-      <body>
-        <SessionProvider>{children}</SessionProvider>
-      </body>
+      <body>{children}</body>
     </html>
   )
 }
