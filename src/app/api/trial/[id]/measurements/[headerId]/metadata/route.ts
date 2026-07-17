@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { measurementHeader } from '@/lib/db/schema'
+import { measurementHeader, auditLog } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
@@ -29,6 +29,21 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     })
     .where(eq(measurementHeader.id, existing.id))
     .returning()
+
+  try {
+    const label = existing.description || existing.measurementType || `measurement ${existing.ordinal}`
+    const fields = ['measurementDate','assessedBy','growthStage']
+    const changed = fields.filter((f) => body[f] !== undefined && body[f] !== (existing as Record<string, unknown>)[f])
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'measurement.metadata.edit',
+      entity: `measurement_header:${existing.id}`,
+      summary: `Edited metadata for "${label}" — changed ${changed.length ? changed.join(', ') : 'fields'}`,
+      detail: JSON.stringify({ headerId: existing.id, changed }),
+    })
+  } catch {}
 
   return NextResponse.json(updated)
 }

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { trial, protocol, plot } from '@/lib/db/schema'
+import { trial, protocol, plot, auditLog } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 import { canSwapTreatments } from '@shared/design'
@@ -37,6 +37,18 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   await db.update(plot).set({ treatmentId: b.treatmentId }).where(eq(plot.id, a.id))
   await db.update(plot).set({ treatmentId: a.treatmentId }).where(eq(plot.id, b.id))
+
+  try {
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'plot.swap',
+      entity: `trial:${trialId}`,
+      summary: `Swapped treatments between plot #${a.plotNumber} and plot #${b.plotNumber}`,
+      detail: JSON.stringify({ plotIdA: a.id, plotNumberA: a.plotNumber, plotIdB: b.id, plotNumberB: b.plotNumber }),
+    })
+  } catch {}
 
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

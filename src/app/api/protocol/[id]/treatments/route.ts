@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { protocol, treatment, treatmentApplication } from '@/lib/db/schema'
-import { asc, eq, inArray } from 'drizzle-orm'
+import { protocol, treatment, treatmentApplication, trial, auditLog } from '@/lib/db/schema'
+import { asc, eq, inArray, sql } from 'drizzle-orm'
 import { Treatment } from '@shared/types'
 import { z } from 'zod'
 
@@ -51,6 +51,9 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const [proto] = await db.select().from(protocol).where(eq(protocol.id, protocolId))
   if (!proto) return badRequest('Protocol not found')
 
+  const [{ count: tc }] = await db.select({ count: sql<number>`count(*)` }).from(trial).where(eq(trial.protocolId, protocolId))
+  if (Number(tc) > 0) return NextResponse.json({ error: 'Protocol has trials and cannot be edited' }, { status: 409 })
+
   const parsed = z.array(Treatment).safeParse(await req.json())
   if (!parsed.success) return badRequest(parsed.error.message)
 
@@ -94,6 +97,18 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     arr.push(a)
     appsByTreatment.set(a.treatmentId, arr)
   }
+
+  try {
+    await db.insert(auditLog).values({
+      protocolId,
+      role: 'protocol',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'treatments.replace',
+      entity: `protocol:${protocolId}`,
+      summary: `Replaced treatments for protocol ${protocolId} — ${insertedTreatments.length} treatment(s)`,
+      detail: JSON.stringify({ count: insertedTreatments.length, applicationRows: insertedApps.length }),
+    })
+  } catch {}
 
   return NextResponse.json(
     insertedTreatments.map((t) => ({ ...t, applications: appsByTreatment.get(t.id) ?? [] }))

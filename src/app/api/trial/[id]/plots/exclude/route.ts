@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { trial, plot } from '@/lib/db/schema'
+import { trial, plot, auditLog } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 
@@ -29,6 +29,20 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   if (!p || p.trialId !== trialId) return badRequest('Plot not found')
 
   await db.update(plot).set({ excluded, excludeReason: reason }).where(eq(plot.id, p.id))
+
+  try {
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: excluded ? 'plot.exclude' : 'plot.include',
+      entity: `plot:${p.id}`,
+      summary: excluded
+        ? `Excluded plot #${p.plotNumber} — reason: ${reason}`
+        : `Re-included plot #${p.plotNumber}`,
+      detail: JSON.stringify({ plotId: p.id, plotNumber: p.plotNumber, excluded, reason }),
+    })
+  } catch {}
 
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

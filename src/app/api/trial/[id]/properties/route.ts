@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { trial, property } from '@/lib/db/schema'
+import { trial, property, auditLog } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 
@@ -42,6 +42,18 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     .filter((p) => (p.key ?? '').trim())
     .map((p) => ({ trialId, scope, scopeRef, key: p.key!, value: p.value ?? '' }))
   if (rows.length > 0) await db.insert(property).values(rows)
+
+  try {
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'properties.save',
+      entity: `trial:${trialId}`,
+      summary: `Saved ${rows.length} propert${rows.length === 1 ? 'y' : 'ies'} (scope: ${scope}${scopeRef ? `, ref: ${scopeRef}` : ''})`,
+      detail: JSON.stringify({ scope, scopeRef, count: rows.length }),
+    })
+  } catch {}
 
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

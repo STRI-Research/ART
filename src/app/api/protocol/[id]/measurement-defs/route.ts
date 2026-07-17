@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { protocol, measurementDef } from '@/lib/db/schema'
-import { asc, eq } from 'drizzle-orm'
+import { protocol, measurementDef, trial, auditLog } from '@/lib/db/schema'
+import { asc, eq, sql } from 'drizzle-orm'
 import { MeasurementDef } from '@shared/types'
 import { z } from 'zod'
 
@@ -34,6 +34,9 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const [proto] = await db.select().from(protocol).where(eq(protocol.id, protocolId))
   if (!proto) return badRequest('Protocol not found')
 
+  const [{ count: tc }] = await db.select({ count: sql<number>`count(*)` }).from(trial).where(eq(trial.protocolId, protocolId))
+  if (Number(tc) > 0) return NextResponse.json({ error: 'Protocol has trials and cannot be edited' }, { status: 409 })
+
   const parsed = z.array(MeasurementDef).safeParse(await req.json())
   if (!parsed.success) return badRequest(parsed.error.message)
 
@@ -60,6 +63,18 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
         )
         .returning()
     : []
+
+  try {
+    await db.insert(auditLog).values({
+      protocolId,
+      role: 'protocol',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'measurement.def.replace',
+      entity: `protocol:${protocolId}`,
+      summary: `Replaced measurement definitions for protocol ${protocolId} — ${saved.length} definition(s)`,
+      detail: JSON.stringify({ count: saved.length }),
+    })
+  } catch {}
 
   return NextResponse.json(saved)
 }

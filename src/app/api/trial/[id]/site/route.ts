@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { trial } from '@/lib/db/schema'
+import { trial, auditLog } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 
@@ -36,6 +36,20 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
       updatedAt: new Date(),
     })
     .where(eq(trial.id, trialId))
+
+  try {
+    const fields = ['siteName','operator','location','city','state','country','plantingDate','trialNotes']
+    const changed = fields.filter((f) => body[f] !== undefined && body[f] !== (tr as Record<string, unknown>)[f])
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'trial.site.edit',
+      entity: `trial:${trialId}`,
+      summary: `Edited trial site info — changed ${changed.length ? changed.join(', ') : 'fields'}`,
+      detail: JSON.stringify({ changed }),
+    })
+  } catch {}
 
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

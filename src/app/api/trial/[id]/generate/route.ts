@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { trial, protocol, treatment, plot } from '@/lib/db/schema'
+import { trial, protocol, treatment, plot, auditLog } from '@/lib/db/schema'
 import { eq, asc } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 import { validateDesign, defaultCols } from '@shared/design'
@@ -56,10 +56,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const validation = validateDesign(design, proto.replicates, proto.blockSize, treatments.length)
   if (!validation.ok) return badRequest(validation.error ?? 'Invalid design')
 
-  if (design === 'ALPHA') {
-    return badRequest('Alpha designs not yet supported in web version')
-  }
-  if (design !== 'RCB' && design !== 'CRD') {
+  if (design !== 'RCB' && design !== 'CRD' && design !== 'ALPHA') {
     return badRequest(`Unsupported design: ${design}`)
   }
 
@@ -84,6 +81,28 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       for (let pos = 0; pos < treatmentCount; pos++) {
         const order = repIdx * treatmentCount + pos
         newPlots.push({ plotNumber: order + 1, rep: repIdx + 1, block: repIdx + 1, treatmentNumber: perm[pos] })
+      }
+    }
+  } else if (design === 'ALPHA') {
+    // Alpha (incomplete block): each replicate is a random permutation of all treatments,
+    // split into s incomplete blocks of k plots. Block numbers are per-replicate (1..s).
+    const k = proto.blockSize
+    const s = treatmentCount / k // blocks per replicate
+    for (let repIdx = 0; repIdx < replicates; repIdx++) {
+      const perm = shuffle(
+        treatments.map((t) => t.number),
+        rand
+      )
+      for (let b = 0; b < s; b++) {
+        for (let j = 0; j < k; j++) {
+          const plotIdx = repIdx * treatmentCount + b * k + j
+          newPlots.push({
+            plotNumber: plotIdx + 1,
+            rep: repIdx + 1,
+            block: b + 1,
+            treatmentNumber: perm[b * k + j],
+          })
+        }
       }
     }
   } else {
@@ -119,6 +138,19 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     .update(trial)
     .set({ plotRows, plotCols: cols, seed, updatedAt: new Date() })
     .where(eq(trial.id, trialId))
+
+  try {
+    await db.insert(auditLog).values({
+      trialId,
+      protocolId: proto.id,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'trial.generate',
+      entity: `trial:${trialId}`,
+      summary: `Generated ${design} layout — ${replicates} rep(s), ${newPlots.length} plots, seed ${seed}`,
+      detail: JSON.stringify({ design, replicates, seed, plotCount: newPlots.length, cols }),
+    })
+  } catch {}
 
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

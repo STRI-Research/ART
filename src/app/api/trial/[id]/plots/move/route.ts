@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { trial, plot } from '@/lib/db/schema'
+import { trial, plot, auditLog } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 
@@ -39,6 +39,18 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     await db.update(plot).set({ mapRow: p.mapRow, mapCol: p.mapCol }).where(eq(plot.id, occupant.id))
   }
   await db.update(plot).set({ mapRow, mapCol }).where(eq(plot.id, p.id))
+
+  try {
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'plot.move',
+      entity: `plot:${p.id}`,
+      summary: `Moved plot #${p.plotNumber} to row ${mapRow}, col ${mapCol}${occupant && occupant.id !== p.id ? ` (swapped with plot #${occupant.plotNumber})` : ''}`,
+      detail: JSON.stringify({ plotId: p.id, plotNumber: p.plotNumber, fromRow: p.mapRow, fromCol: p.mapCol, toRow: mapRow, toCol: mapCol }),
+    })
+  } catch {}
 
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

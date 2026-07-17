@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { measurementValue, measurementHeader } from '@/lib/db/schema'
+import { measurementValue, measurementHeader, auditLog } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
@@ -62,6 +62,20 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
         set: { value },
       })
   }
+
+  try {
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'measurement.value.set',
+      entity: `measurement_header:${measurementHeaderId}`,
+      summary: value === null
+        ? `Cleared value for plot ${plotId}, header ${measurementHeaderId}, subsample ${subsample}`
+        : `Set value ${value} for plot ${plotId}, header ${measurementHeaderId}, subsample ${subsample}`,
+      detail: JSON.stringify({ measurementHeaderId, plotId, subsample, value, count: 1 }),
+    })
+  } catch {}
 
   return NextResponse.json({ ok: true })
 }

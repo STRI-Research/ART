@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { LIBRARY_CATEGORY_LABELS, LibraryCategory, isCropScoped, type PersonalTerm } from '@shared/types'
 
@@ -45,7 +45,12 @@ export function LibraryView() {
     setBusy(true)
     try {
       const updated = await api.library.update(t.id, { value: next })
-      setTerms((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+      // If a merge happened, the returned id belongs to the merge target (not the old term).
+      // Remove the old term and upsert the merged result.
+      setTerms((prev) => {
+        const without = prev.filter((x) => x.id !== t.id && x.id !== updated.id)
+        return [...without, updated]
+      })
     } finally {
       setBusy(false)
     }
@@ -59,6 +64,42 @@ export function LibraryView() {
       setBusy(false)
     }
   }
+
+  const exportLibrary = useCallback(async () => {
+    setBusy(true)
+    try {
+      const res = await fetch('/api/library/export')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'library.artlib'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
+  const fileRef = useRef<HTMLInputElement>(null)
+  const importLibrary = useCallback(async (file: File) => {
+    setBusy(true)
+    try {
+      const text = await file.text()
+      const payload = JSON.parse(text)
+      await fetch('/api/library/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      load()
+    } finally {
+      setBusy(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }, [])
 
   return (
     <div className="card">
@@ -80,7 +121,23 @@ export function LibraryView() {
           </select>
         </div>
         <div className="spacer" style={{ flex: 1 }} />
-        {busy && <span className="muted">Saving…</span>}
+        <button onClick={exportLibrary} disabled={busy}>
+          Export
+        </button>
+        <button onClick={() => fileRef.current?.click()} disabled={busy} style={{ marginLeft: 6 }}>
+          Import
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json,.artlib"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) importLibrary(f)
+          }}
+        />
+        {busy && <span className="muted" style={{ marginLeft: 8 }}>Saving…</span>}
       </div>
 
       {loading ? (

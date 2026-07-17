@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { trial, plot } from '@/lib/db/schema'
+import { trial, plot, auditLog } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 
@@ -12,7 +12,7 @@ function badRequest(msg: string) {
   return NextResponse.json({ error: msg }, { status: 400 })
 }
 
-export async function POST(_req: NextRequest, ctx: Ctx) {
+export async function POST(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
   const db = getDb()
   const trialId = Number(id)
@@ -28,6 +28,18 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
     .update(trial)
     .set({ layoutLockedAt: new Date().toISOString(), updatedAt: new Date() })
     .where(eq(trial.id, trialId))
+
+  try {
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'trial.layout.lock',
+      entity: `trial:${trialId}`,
+      summary: `Locked trial layout — ${plots.length} plots`,
+      detail: JSON.stringify({ plotCount: plots.length }),
+    })
+  } catch {}
 
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

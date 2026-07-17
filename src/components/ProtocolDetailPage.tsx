@@ -416,6 +416,31 @@ export function ProtocolDetailPage({ id }: { id: number }) {
           onSave={saveMeasurementDefs}
         />
       )}
+
+      <div className="card" style={{ marginTop: 24, textAlign: 'center' }}>
+        <button
+          className="primary"
+          disabled={!designValidation.ok || treatments.length < 2}
+          title={
+            !designValidation.ok
+              ? designValidation.error
+              : treatments.length < 2
+                ? 'Add at least 2 treatments'
+                : 'Create a trial site from this protocol'
+          }
+          onClick={async () => {
+            const snap = await api.trials.create(id)
+            router.push(`/trial/${snap.trial.id}`)
+          }}
+        >
+          Create Trial from this Protocol
+        </button>
+        {(!designValidation.ok || treatments.length < 2) && (
+          <p className="muted" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
+            {!designValidation.ok ? designValidation.error : 'Add at least 2 treatments before creating a trial.'}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

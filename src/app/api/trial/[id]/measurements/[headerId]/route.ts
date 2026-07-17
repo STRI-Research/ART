@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { measurementHeader } from '@/lib/db/schema'
+import { measurementHeader, auditLog } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
@@ -48,10 +48,23 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     .where(eq(measurementHeader.id, existing.id))
     .returning()
 
+  try {
+    const label = updated.description || updated.measurementType || `measurement ${updated.ordinal}`
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'measurement.header.edit',
+      entity: `measurement_header:${existing.id}`,
+      summary: `Edited measurement column "${label}"`,
+      detail: JSON.stringify({ headerId: existing.id }),
+    })
+  } catch {}
+
   return NextResponse.json(updated)
 }
 
-export async function DELETE(_req: NextRequest, ctx: Ctx) {
+export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id, headerId } = await ctx.params
   const trialId = Number(id)
 
@@ -62,6 +75,19 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
 
   const db = getDb()
   await db.delete(measurementHeader).where(eq(measurementHeader.id, existing.id))
+
+  try {
+    const label = existing.description || existing.measurementType || `measurement ${existing.ordinal}`
+    await db.insert(auditLog).values({
+      trialId,
+      role: 'trial',
+      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      action: 'measurement.header.delete',
+      entity: `measurement_header:${existing.id}`,
+      summary: `Deleted measurement column "${label}"`,
+      detail: JSON.stringify({ headerId: existing.id, measurementType: existing.measurementType }),
+    })
+  } catch {}
 
   return NextResponse.json({ ok: true })
 }
