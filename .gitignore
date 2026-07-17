@@ -1,9 +1,16 @@
 node_modules/
+.next/
 out/
 dist-app/
+drizzle/
 *.log
 *.tsbuildinfo
 .DS_Store
+.env
+.env.local
+.env.*.local
+.vercel
+
 # Local test project files
 *.artdb
 !src/**/*.artdb
@@ -19,3 +26,6 @@ dist-app/
 sqlite_all.zip
 *eppocodes*.sqlite
 resources/eppocodes.sqlite
+
+.vercel
+.env*
