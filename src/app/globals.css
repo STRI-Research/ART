@@ -209,6 +209,22 @@ body {
   letter-spacing: 0.03em;
   margin: 18px 0 8px;
 }
+.field-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.field-row textarea {
+  resize: vertical;
+}
+.field-label {
+  min-width: 110px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--muted);
+  flex-shrink: 0;
+}
 
 button {
   font-size: 13px;
