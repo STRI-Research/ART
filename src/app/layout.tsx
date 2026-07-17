@@ -26,7 +26,22 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: bypassStripper }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <div className="app-shell">
+          <header className="app-header">
+            <a href="/" style={{ textDecoration: 'none' }}>
+              <h1>ART</h1>
+            </a>
+            <nav className="app-nav">
+              <a href="/protocol">Protocols</a>
+              <a href="/trial">Trials</a>
+              <a href="/library">Library</a>
+            </nav>
+            <div className="spacer" />
+          </header>
+          <main className="app-main">{children}</main>
+        </div>
+      </body>
     </html>
   )
 }

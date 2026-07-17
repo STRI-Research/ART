@@ -18,8 +18,7 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
   margin: 0;
 }
@@ -31,6 +30,51 @@ body {
   font-size: 14px;
 }
 
+/* Web app shell: header + main content area */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+.app-main {
+  flex: 1;
+  overflow: auto;
+}
+.app-nav {
+  display: flex;
+  gap: 4px;
+}
+.app-nav a {
+  color: var(--text);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.app-nav a:hover {
+  background: #eef0f3;
+}
+
+/* Trial detail: sidebar + content layout */
+.trial-layout {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  grid-template-areas: 'sidebar main';
+  height: calc(100vh - 45px);
+  transition: grid-template-columns 0.18s ease;
+}
+.trial-layout.sidebar-collapsed {
+  grid-template-columns: 42px 1fr;
+}
+.trial-layout.sidebar-collapsed .sidebar {
+  padding: 8px 6px;
+}
+.trial-layout.sidebar-collapsed .nav-item {
+  display: none;
+}
+
+/* Legacy .app grid kept for compatibility with original CSS */
 .app {
   display: grid;
   grid-template-columns: 210px 1fr;
@@ -47,7 +91,6 @@ body {
 .app.sidebar-collapsed .sidebar {
   padding: 8px 6px;
 }
-/* Collapsed rail shows only the toggle arrow. */
 .app.sidebar-collapsed .nav-item {
   display: none;
 }
@@ -640,6 +683,25 @@ table.data td.num {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.welcome-recent {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 340px));
+  gap: 18px;
+  text-align: left;
+  margin-top: 8px;
+}
+.recent-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.recent-item:hover {
+  background: var(--bg);
 }
 .tag {
   font-size: 11px;

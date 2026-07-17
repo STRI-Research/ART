@@ -1,0 +1,67 @@
+import { NextResponse, type NextRequest } from 'next/server'
+import { getDb } from '@/lib/db'
+import { measurementValue, measurementHeader } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
+
+export const dynamic = 'force-dynamic'
+
+type Ctx = { params: Promise<{ id: string }> }
+
+export async function GET(_req: NextRequest, ctx: Ctx) {
+  const { id } = await ctx.params
+  const trialId = Number(id)
+  const db = getDb()
+
+  const rows = await db
+    .select({
+      measurementHeaderId: measurementValue.measurementHeaderId,
+      plotId: measurementValue.plotId,
+      subsample: measurementValue.subsample,
+      value: measurementValue.value,
+    })
+    .from(measurementValue)
+    .innerJoin(measurementHeader, eq(measurementValue.measurementHeaderId, measurementHeader.id))
+    .where(eq(measurementHeader.trialId, trialId))
+
+  return NextResponse.json(rows)
+}
+
+export async function PUT(req: NextRequest, ctx: Ctx) {
+  const { id } = await ctx.params
+  const trialId = Number(id)
+  const db = getDb()
+  const body = await req.json()
+
+  const measurementHeaderId = Number(body.measurementHeaderId)
+  const plotId = Number(body.plotId)
+  const subsample = Number(body.subsample ?? 1)
+  const value = body.value === null || body.value === undefined ? null : Number(body.value)
+
+  const [header] = await db
+    .select()
+    .from(measurementHeader)
+    .where(and(eq(measurementHeader.id, measurementHeaderId), eq(measurementHeader.trialId, trialId)))
+  if (!header) return NextResponse.json({ error: 'Measurement header not found' }, { status: 400 })
+
+  if (value === null) {
+    await db
+      .delete(measurementValue)
+      .where(
+        and(
+          eq(measurementValue.measurementHeaderId, measurementHeaderId),
+          eq(measurementValue.plotId, plotId),
+          eq(measurementValue.subsample, subsample)
+        )
+      )
+  } else {
+    await db
+      .insert(measurementValue)
+      .values({ measurementHeaderId, plotId, subsample, value })
+      .onConflictDoUpdate({
+        target: [measurementValue.measurementHeaderId, measurementValue.plotId, measurementValue.subsample],
+        set: { value },
+      })
+  }
+
+  return NextResponse.json({ ok: true })
+}

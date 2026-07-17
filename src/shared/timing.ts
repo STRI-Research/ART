@@ -1,4 +1,4 @@
-import type { MeasurementDef, ApplicationActual } from './types.js'
+import type { MeasurementDef, ApplicationActual } from './types'
 
 /**
  * Measurement timing is anchored to an application: an measurement references an application's timing

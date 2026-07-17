@@ -1,4 +1,4 @@
-import type { DesignType } from './types.js'
+import type { DesignType } from './types'
 
 /**
  * Experimental-design conformance checks. The Incomplete Block (Alpha) design is only

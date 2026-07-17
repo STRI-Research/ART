@@ -1,5 +1,5 @@
-import type { ProjectSnapshot, MeasurementHeader } from './types.js'
-import { parseFormula, evaluate } from './formula.js'
+import type { ProjectSnapshot, MeasurementHeader } from './types'
+import { parseFormula, evaluate } from './formula'
 
 /** A measurement is *calculated* when it carries a non-empty formula (derived, not hand-entered). */
 export function isCalculated(h: Pick<MeasurementHeader, 'formula'>): boolean {
