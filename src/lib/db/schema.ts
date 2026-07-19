@@ -30,6 +30,9 @@ export const protocol = pgTable('protocol', {
   blockSize: integer('block_size').notNull().default(2),
   plotWidth: real('plot_width').notNull().default(0),
   plotLength: real('plot_length').notNull().default(0),
+  // Schedule anchor: the trial's start date (first application / day 0). Applications and assessments
+  // are timed as day-offsets from here (one protocol = one trial, so a real date lives here).
+  startDate: text('start_date').notNull().default(''),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })
@@ -80,6 +83,8 @@ export const application = pgTable('application', {
   timingCode: text('timing_code').notNull().default(''),
   targetGrowthStage: text('growth_stage').notNull().default(''),
   description: text('description').notNull().default(''),
+  // Days after the protocol start date this application occurs (schedule offset).
+  dayOffset: integer('day_offset').notNull().default(0),
 })
 
 // ---------------------------------------------------------------------------

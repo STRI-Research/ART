@@ -124,7 +124,9 @@ export const Protocol = z.object({
   // treatment count must be divisible by k and k < treatment count.
   blockSize: z.number().int().min(2).default(2),
   plotWidth: z.number().default(0),
-  plotLength: z.number().default(0)
+  plotLength: z.number().default(0),
+  /** Trial start date (day 0); applications/assessments are timed as day-offsets from here. */
+  startDate: z.string().default('')
 })
 export type Protocol = z.infer<typeof Protocol>
 
@@ -171,7 +173,9 @@ export const Application = z.object({
   timingCode: z.string().default(''),
   /** Intended crop growth stage at this application (from the growth_stage library). */
   targetGrowthStage: z.string().default(''),
-  description: z.string().default('')
+  description: z.string().default(''),
+  /** Days after the protocol start date this application occurs. */
+  dayOffset: z.number().int().default(0)
 })
 export type Application = z.infer<typeof Application>
 

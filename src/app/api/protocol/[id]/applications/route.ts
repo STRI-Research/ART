@@ -54,6 +54,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
               timingCode: a.timingCode ?? '',
               targetGrowthStage: a.targetGrowthStage ?? '',
               description: a.description ?? '',
+              dayOffset: a.dayOffset ?? 0,
             }))
           )
           .returning()

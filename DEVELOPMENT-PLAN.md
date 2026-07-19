@@ -95,6 +95,7 @@ implementation now; wire the real API later without touching the feature UI.
 | **Customer DB** | Company + contact | Protocol builder, reports, visit sheet, weigh sheet, customer↔access mapping | Stub now, API later |
 | **Weather DB** | Conditions by date/location | Weigh/application sheet, application condition records | Stub now, API later |
 | **Field mapping / planner** | Plot geometry, field position | Plot-map orientation, printed maps, drone-image clipping | Longer term |
+| **SOP database** | Standard-operating-procedure assessment catalog, versioned | Assessment picker in the protocol builder (which assessment + SOP version); schedule table; customer portal | Stub now, API later |
 
 ---
 
@@ -290,7 +291,7 @@ for interrogating this with Claude Code:
 | B13 | Trial map: N/S/E/W compass | T5 | 4 | not-started | — |
 | B14 | Connect plot map to the field-planner mapping tool | T5 | 6 | not-started | Map adapter |
 | B15 | Simplify treatment / label scheme (A,B,C,D) | T4 | 4 | not-started | *decision #1* |
-| B16 | Hybrid assessment-timing model | T4 / E | 4 | not-started | *decision #2* |
+| B16 | Hybrid assessment-timing model | T4 / E | 4 | in-progress | *decision #2* |
 | B17 | Investigate "locked" assessment/treatment dates | T4 | 4 | not-started | — |
 | B18 | Separate Assessment-Dates / schedule section | T4 / E | 4 | not-started | B16 |
 | B19 | Fixed-format Excel exports (filing system) | T7 / D | 4 | not-started | D |

@@ -7,6 +7,7 @@ import { Combobox } from '@/components/Combobox'
 import { TimingField } from '@/components/TimingField'
 import { TreatmentProgram, programSummary } from '@/components/TreatmentProgram'
 import { timingLabel } from '@shared/timing'
+import { eventOffsets, dateForOffset, finishDate, solveCount } from '@shared/schedule'
 import { parseFormula } from '@shared/formula'
 import { validateDesign } from '@shared/design'
 import type {
@@ -301,7 +302,17 @@ export function ProtocolDetailPage({ id }: { id: number }) {
       )}
 
       {tab === 'applications' && (
-        <ApplicationsSection applications={applications} crop={protocol.crop} onSave={saveApplications} />
+        <ApplicationsSection
+          applications={applications}
+          crop={protocol.crop}
+          startDate={protocol.startDate}
+          onSave={saveApplications}
+          onSaveStartDate={(d) => {
+            const next = { ...protocol, startDate: d }
+            setProtocol(next)
+            saveProtocol(next)
+          }}
+        />
       )}
 
       {tab === 'treatments' && (
@@ -445,77 +456,155 @@ export function ProtocolDetailPage({ id }: { id: number }) {
   )
 }
 
-/** Protocol applications — the timing *plan* (A/B/C…): each a timing code + intended crop growth
- * stage. Measurements anchor their timing to these; the actual date each happened is trial-side. */
+/** The application schedule. A start date + interval + count generate the dated applications
+ *  (A, B, C…); the four fields stay linked (finish is derived, and editing it re-solves the count).
+ *  Per row you can fine-tune the day-offset, growth stage and description. One protocol = one trial,
+ *  so these dates are real. */
 function ApplicationsSection({
   applications,
   crop,
+  startDate,
   onSave,
+  onSaveStartDate,
 }: {
   applications: Application[]
   crop: string
+  startDate: string
   onSave: (next: Application[]) => void
+  onSaveStartDate: (date: string) => void
 }) {
-  const nextCode = (): string => {
-    // Suggest the next letter A, B, C… not already used.
-    const used = new Set(applications.map((a) => a.timingCode))
-    for (let i = 0; i < 26; i++) {
-      const c = String.fromCharCode(65 + i)
-      if (!used.has(c)) return c
+  // Local rows for smooth typing; committed to the server on blur / structural change.
+  const [rows, setRows] = useState<Application[]>(applications)
+  useEffect(() => setRows(applications), [applications])
+
+  const count = rows.length
+  const interval = rows.length >= 2 ? rows[1].dayOffset - rows[0].dayOffset || 14 : 14
+  const finish = finishDate(startDate, count, interval)
+
+  const buildRow = (i: number, offset: number): Application => {
+    const prev = rows[i]
+    return {
+      id: prev?.id,
+      ordinal: i,
+      timingCode: prev?.timingCode || String.fromCharCode(65 + i),
+      targetGrowthStage: prev?.targetGrowthStage ?? '',
+      description: prev?.description ?? '',
+      dayOffset: offset,
     }
-    return ''
   }
 
-  const add = (): void =>
-    onSave([
-      ...applications,
-      { ordinal: applications.length, timingCode: nextCode(), targetGrowthStage: '', description: '' },
-    ])
-  const update = (i: number, patch: Partial<Application>): void =>
-    onSave(applications.map((a, idx) => (idx === i ? { ...a, ...patch } : a)))
-  const remove = (i: number): void => onSave(applications.filter((_, idx) => idx !== i))
+  // Regenerate the whole series from count + interval, preserving per-row metadata by position.
+  const regenerate = (nextCount: number, nextInterval: number): void => {
+    const n = Math.max(0, Math.min(26, Math.floor(nextCount || 0)))
+    const next = eventOffsets(n, Math.max(1, Math.floor(nextInterval || 1))).map((off, i) => buildRow(i, off))
+    setRows(next)
+    onSave(next)
+  }
+
+  const editRow = (i: number, patch: Partial<Application>): void =>
+    setRows(rows.map((a, idx) => (idx === i ? { ...a, ...patch } : a)))
+  const commit = (): void => onSave(rows)
+  const remove = (i: number): void => {
+    const next = rows.filter((_, idx) => idx !== i).map((x, idx) => ({ ...x, ordinal: idx }))
+    setRows(next)
+    onSave(next)
+  }
 
   return (
     <div className="card">
-      <h2>Applications</h2>
+      <h2>Application Schedule</h2>
       <p className="muted">
-        The treatment-application schedule (A, B, C…). Measurements can be timed relative to an
-        application (e.g. &quot;14&nbsp;DA-A&quot;). The date each application actually happens is
-        recorded per trial site.
+        Set the start date, the number of applications, and the interval — the timings and dates
+        generate automatically and stay linked. Fine-tune any row below.
       </p>
-      {applications.length > 0 && (
-        <table className="data" style={{ marginBottom: 12 }}>
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ width: 160 }}>
+          <label>Start date (day 0)</label>
+          <input type="date" value={startDate} onChange={(e) => onSaveStartDate(e.target.value)} />
+        </div>
+        <div style={{ width: 120 }}>
+          <label># applications</label>
+          <input
+            type="number"
+            min={0}
+            max={26}
+            value={count}
+            onChange={(e) => regenerate(Number(e.target.value), interval)}
+          />
+        </div>
+        <div style={{ width: 120 }}>
+          <label>Interval (days)</label>
+          <input
+            type="number"
+            min={1}
+            value={interval}
+            onChange={(e) => regenerate(count, Number(e.target.value))}
+          />
+        </div>
+        <div style={{ width: 160 }}>
+          <label>Finish date</label>
+          <input
+            type="date"
+            value={finish}
+            disabled={!startDate || count < 2}
+            onChange={(e) => {
+              const c = solveCount(startDate, e.target.value, interval)
+              if (c != null) regenerate(c, interval)
+            }}
+          />
+        </div>
+      </div>
+
+      {rows.length > 0 && (
+        <table className="data" style={{ marginTop: 14 }}>
           <thead>
             <tr>
-              <th style={{ width: 70 }}>Timing</th>
+              <th style={{ width: 64 }}>Timing</th>
+              <th style={{ width: 64 }}>Day</th>
+              <th style={{ width: 130 }}>Date</th>
               <th style={{ width: 200 }}>Target growth stage</th>
               <th>Description</th>
               <th style={{ width: 40 }}></th>
             </tr>
           </thead>
           <tbody>
-            {applications.map((a, i) => (
+            {rows.map((a, i) => (
               <tr key={a.id ?? i}>
                 <td>
                   <input
-                    style={{ width: 54 }}
+                    style={{ width: 48 }}
                     value={a.timingCode}
-                    onChange={(e) => update(i, { timingCode: e.target.value.toUpperCase().slice(0, 4) })}
+                    onChange={(e) => editRow(i, { timingCode: e.target.value.toUpperCase().slice(0, 4) })}
+                    onBlur={commit}
                   />
                 </td>
+                <td className="num">
+                  <input
+                    type="number"
+                    style={{ width: 52 }}
+                    value={a.dayOffset}
+                    onChange={(e) => editRow(i, { dayOffset: Number(e.target.value) })}
+                    onBlur={commit}
+                  />
+                </td>
+                <td className="muted">{dateForOffset(startDate, a.dayOffset) || '—'}</td>
                 <td>
                   <Combobox
                     category="growth_stage"
                     crop={crop}
                     value={a.targetGrowthStage}
-                    onChange={(v) => update(i, { targetGrowthStage: v })}
+                    onChange={(v) => {
+                      editRow(i, { targetGrowthStage: v })
+                      onSave(rows.map((x, idx) => (idx === i ? { ...x, targetGrowthStage: v } : x)))
+                    }}
                   />
                 </td>
                 <td>
                   <input
                     value={a.description}
                     placeholder="e.g. first fungicide spray"
-                    onChange={(e) => update(i, { description: e.target.value })}
+                    onChange={(e) => editRow(i, { description: e.target.value })}
+                    onBlur={commit}
                   />
                 </td>
                 <td>
@@ -528,7 +617,9 @@ function ApplicationsSection({
           </tbody>
         </table>
       )}
-      <button onClick={add}>+ Add application</button>
+      <div style={{ marginTop: 10 }}>
+        <button onClick={() => regenerate(count + 1, interval)}>+ Add application</button>
+      </div>
     </div>
   )
 }

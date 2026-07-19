@@ -115,6 +115,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
       blockSize: body.blockSize ?? proto.blockSize,
       plotWidth: body.plotWidth ?? proto.plotWidth,
       plotLength: body.plotLength ?? proto.plotLength,
+      startDate: body.startDate ?? proto.startDate,
       updatedAt: new Date(),
     })
     .where(eq(protocol.id, proto.id))
