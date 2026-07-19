@@ -61,6 +61,9 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
               analyze: d.analyze ?? true,
               subsamples: d.subsamples ?? 1,
               formula: d.formula ?? '',
+              startOffset: d.startOffset ?? 0,
+              intervalDays: d.intervalDays ?? 0,
+              occurrences: d.occurrences ?? 1,
             }))
           )
           .returning()

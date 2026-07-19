@@ -271,6 +271,11 @@ export const MeasurementDef = z.object({
   analyze: z.boolean().default(true),
   /** Measurements recorded per plot; >1 are averaged to the plot value before ANOVA. */
   subsamples: z.number().int().min(1).max(50).default(1),
+  /** Assessment cadence: first occurrence `startOffset` days after the protocol start, repeating
+   *  every `intervalDays` for `occurrences` times (occurrences=1 → a single assessment). */
+  startOffset: z.number().int().default(0),
+  intervalDays: z.number().int().default(0),
+  occurrences: z.number().int().min(1).default(1),
   /**
    * When non-empty, this is a *calculated* measurement: its per-plot value is derived from this
    * formula rather than hand-entered. Formulas reference other measurements by 1-based column number

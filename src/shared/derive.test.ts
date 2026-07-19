@@ -27,6 +27,9 @@ function header(id: number, ordinal: number, formula = ''): MeasurementHeader {
     analyze: true,
     subsamples: 1,
     formula,
+    startOffset: 0,
+    intervalDays: 0,
+    occurrences: 1,
     measurementDate: '',
     assessedBy: '',
     growthStage: ''

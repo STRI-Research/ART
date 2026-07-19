@@ -48,3 +48,18 @@ export function solveCount(startDate: string, finish: string, intervalDays: numb
   if (span == null || intervalDays <= 0) return null
   return Math.max(1, Math.floor(span / intervalDays) + 1)
 }
+
+/** An assessment's cadence: first occurrence at `startOffset`, then every `intervalDays` for
+ *  `occurrences` times (intervalDays<=0 or occurrences<=1 → a single occurrence at startOffset). */
+export interface Cadence {
+  startOffset: number
+  intervalDays: number
+  occurrences: number
+}
+
+/** Day-offsets (from the protocol start) for every occurrence of an assessment's cadence. */
+export function cadenceOffsets(c: Cadence): number[] {
+  const occ = Math.max(1, Math.floor(c.occurrences || 1))
+  const step = Math.max(0, Math.floor(c.intervalDays || 0))
+  return Array.from({ length: occ }, (_, i) => (c.startOffset || 0) + i * step)
+}

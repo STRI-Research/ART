@@ -106,6 +106,11 @@ export const measurementDef = pgTable('measurement_def', {
   analyze: boolean('analyze').notNull().default(true),
   subsamples: integer('subsamples').notNull().default(1),
   formula: text('formula').notNull().default(''),
+  // Assessment cadence: first occurrence at `startOffset` days after the protocol start, repeating
+  // every `intervalDays` for `occurrences` times (occurrences=1 → a single assessment).
+  startOffset: integer('start_offset').notNull().default(0),
+  intervalDays: integer('interval_days').notNull().default(0),
+  occurrences: integer('occurrences').notNull().default(1),
 })
 
 // ---------------------------------------------------------------------------
@@ -219,6 +224,9 @@ export const measurementHeader = pgTable(
     measurementDate: text('measurement_date').notNull().default(''),
     assessedBy: text('assessed_by').notNull().default(''),
     growthStage: text('growth_stage').notNull().default(''),
+    startOffset: integer('start_offset').notNull().default(0),
+    intervalDays: integer('interval_days').notNull().default(0),
+    occurrences: integer('occurrences').notNull().default(1),
   },
   (t) => [index('idx_header_trial').on(t.trialId)]
 )

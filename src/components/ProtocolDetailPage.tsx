@@ -4,10 +4,8 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, type ProtocolSnapshot } from '@/lib/api'
 import { Combobox } from '@/components/Combobox'
-import { TimingField } from '@/components/TimingField'
 import { TreatmentProgram, programSummary } from '@/components/TreatmentProgram'
-import { timingLabel } from '@shared/timing'
-import { eventOffsets, dateForOffset, finishDate, solveCount } from '@shared/schedule'
+import { eventOffsets, dateForOffset, finishDate, solveCount, cadenceOffsets } from '@shared/schedule'
 import { parseFormula } from '@shared/formula'
 import { validateDesign } from '@shared/design'
 import type {
@@ -422,8 +420,8 @@ export function ProtocolDetailPage({ id }: { id: number }) {
       {tab === 'measurements' && (
         <CoreMeasurements
           defs={measurementDefs}
-          applications={applications}
           crop={protocol.crop}
+          startDate={protocol.startDate}
           onSave={saveMeasurementDefs}
         />
       )}
@@ -624,83 +622,102 @@ function ApplicationsSection({
   )
 }
 
-/** Author-defined core measurement schedule. */
+/** Cadence summary, e.g. "day 0, every 7d ×20" or "day 14 (once)". */
+function cadenceSummary(d: MeasurementDef): string {
+  const occ = Math.max(1, d.occurrences ?? 1)
+  const off = d.startOffset ?? 0
+  if (occ <= 1) return `day ${off} (once)`
+  return `day ${off}, every ${d.intervalDays ?? 0}d ×${occ}`
+}
+
+/** Author-defined assessment schedule. Each assessment has a cadence (first day + interval + count);
+ *  the schedule table shows every occurrence across the trial period so different intervals (e.g.
+ *  Disease % on 7 days, others on 14) can be seen interleaved. */
 function CoreMeasurements({
   defs,
-  applications,
   crop,
+  startDate,
   onSave,
 }: {
   defs: MeasurementDef[]
-  applications: Application[]
   crop: string
+  startDate: string
   onSave: (next: MeasurementDef[]) => void
 }) {
-  const [draft, setDraft] = useState({
+  const emptyDraft = {
     partMeasured: '',
     measurementType: '',
     measurementUnit: '',
-    applicationRef: '',
-    daysAfter: null as number | null,
-    timing: '',
     subsamples: 1,
     formula: '',
-  })
+    startOffset: 0,
+    intervalDays: 7,
+    occurrences: 1,
+  }
+  const [draft, setDraft] = useState(emptyDraft)
   const calc = draft.formula.trim().length > 0
   const parsed = calc ? parseFormula(draft.formula) : null
   const formulaError = parsed && !parsed.ok ? parsed.error : null
 
   const add = (): void => {
-    const label = timingLabel(draft)
     onSave([
       ...defs,
       {
         partMeasured: draft.partMeasured,
         measurementType: draft.measurementType,
         measurementUnit: draft.measurementUnit,
-        applicationRef: draft.applicationRef,
-        daysAfter: draft.daysAfter,
-        timing: draft.timing,
+        applicationRef: '',
+        daysAfter: null,
+        timing: '',
         description:
-          [draft.measurementType, draft.partMeasured, label].filter(Boolean).join(' ') || 'Measurement',
+          [draft.measurementType, draft.partMeasured].filter(Boolean).join(' ') || 'Measurement',
         ordinal: defs.length,
         analyze: true,
         subsamples: calc ? 1 : Math.max(1, draft.subsamples || 1),
         formula: calc ? draft.formula.trim() : '',
+        startOffset: draft.startOffset || 0,
+        intervalDays: Math.max(0, draft.intervalDays || 0),
+        occurrences: Math.max(1, draft.occurrences || 1),
       },
     ])
-    setDraft({
-      partMeasured: '',
-      measurementType: '',
-      measurementUnit: '',
-      applicationRef: '',
-      daysAfter: null,
-      timing: '',
-      subsamples: 1,
-      formula: '',
-    })
+    setDraft(emptyDraft)
   }
 
-  const toggleAnalyze = (i: number): void =>
-    onSave(defs.map((d, idx) => (idx === i ? { ...d, analyze: !d.analyze } : d)))
+  const patch = (i: number, p: Partial<MeasurementDef>): void =>
+    onSave(defs.map((d, idx) => (idx === i ? { ...d, ...p } : d)))
+
+  // The interleaved assessment calendar: every distinct occurrence day across all assessments.
+  const scheduled = defs.map((d) => ({
+    d,
+    offsets: cadenceOffsets({
+      startOffset: d.startOffset ?? 0,
+      intervalDays: d.intervalDays ?? 0,
+      occurrences: d.occurrences ?? 1,
+    }),
+  }))
+  const allOffsets = [...new Set(scheduled.flatMap((s) => s.offsets))].sort((a, b) => a - b)
 
   return (
     <div className="card">
-      <h2>Core Measurements</h2>
+      <h2>Assessment Schedule</h2>
       <p className="muted">
-        The measurement schedule every site must collect. Sites may add their own extra columns but
-        cannot change these.
+        Each assessment has its own cadence — a first day, an interval, and a count. The schedule
+        below shows every occurrence, so different intervals (e.g. Disease % every 7 days, the rest
+        every 14) line up on a single calendar.
       </p>
+
       {defs.length > 0 ? (
         <table className="data" style={{ marginBottom: 12 }}>
           <thead>
             <tr>
-              <th>Measurement type</th>
-              <th>Part measured</th>
+              <th>Assessment</th>
               <th>Unit</th>
-              <th>Timing</th>
-              <th style={{ width: 70 }}>Subs</th>
-              <th style={{ width: 80 }}>Analyze</th>
+              <th style={{ width: 70 }}>First day</th>
+              <th style={{ width: 90 }}>Interval (d)</th>
+              <th style={{ width: 70 }}>Count</th>
+              <th>Cadence</th>
+              <th style={{ width: 60 }}>Subs</th>
+              <th style={{ width: 70 }}>Analyze</th>
               <th style={{ width: 40 }}></th>
             </tr>
           </thead>
@@ -708,23 +725,50 @@ function CoreMeasurements({
             {defs.map((d, i) => (
               <tr key={d.id ?? i}>
                 <td>
-                  {d.measurementType || '—'}
+                  {d.measurementType || d.partMeasured || '—'}
                   {d.formula && (
                     <div className="muted" style={{ fontSize: 11 }}>
                       ƒ {d.formula}
                     </div>
                   )}
                 </td>
-                <td>{d.partMeasured || '—'}</td>
                 <td>{d.measurementUnit || '—'}</td>
-                <td>{timingLabel(d) || '—'}</td>
+                <td className="num">
+                  <input
+                    type="number"
+                    style={{ width: 56 }}
+                    value={d.startOffset ?? 0}
+                    onChange={(e) => patch(i, { startOffset: Number(e.target.value) })}
+                  />
+                </td>
+                <td className="num">
+                  <input
+                    type="number"
+                    min={0}
+                    style={{ width: 70 }}
+                    value={d.intervalDays ?? 0}
+                    onChange={(e) => patch(i, { intervalDays: Number(e.target.value) })}
+                  />
+                </td>
+                <td className="num">
+                  <input
+                    type="number"
+                    min={1}
+                    style={{ width: 56 }}
+                    value={d.occurrences ?? 1}
+                    onChange={(e) => patch(i, { occurrences: Math.max(1, Number(e.target.value)) })}
+                  />
+                </td>
+                <td className="muted" style={{ fontSize: 12 }}>
+                  {cadenceSummary(d)}
+                </td>
                 <td className="num">{d.formula ? '—' : (d.subsamples ?? 1)}</td>
                 <td className="num">
                   <input
                     type="checkbox"
                     checked={d.analyze}
-                    onChange={() => toggleAnalyze(i)}
-                    title="Include this measurement in ANOVA and the report"
+                    onChange={() => patch(i, { analyze: !d.analyze })}
+                    title="Include this assessment in ANOVA and the report"
                   />
                 </td>
                 <td>
@@ -737,11 +781,12 @@ function CoreMeasurements({
           </tbody>
         </table>
       ) : (
-        <p className="muted">No core measurements defined yet.</p>
+        <p className="muted">No assessments defined yet.</p>
       )}
-      <div className="row">
+
+      <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div style={{ width: 160 }}>
-          <label>Measurement type</label>
+          <label>Assessment</label>
           <Combobox
             category="measurement_type"
             crop={crop}
@@ -749,7 +794,7 @@ function CoreMeasurements({
             onChange={(v) => setDraft({ ...draft, measurementType: v })}
           />
         </div>
-        <div style={{ width: 160 }}>
+        <div style={{ width: 140 }}>
           <label>Part measured</label>
           <Combobox
             category="part_measured"
@@ -758,7 +803,7 @@ function CoreMeasurements({
             onChange={(v) => setDraft({ ...draft, partMeasured: v })}
           />
         </div>
-        <div style={{ width: 110 }}>
+        <div style={{ width: 90 }}>
           <label>Unit</label>
           <Combobox
             category="unit"
@@ -767,13 +812,34 @@ function CoreMeasurements({
             onChange={(v) => setDraft({ ...draft, measurementUnit: v })}
           />
         </div>
-        <TimingField
-          applications={applications}
-          value={draft}
-          onChange={(v) => setDraft({ ...draft, ...v })}
-        />
-        <div style={{ width: 90 }}>
-          <label>Subsamples</label>
+        <div style={{ width: 70 }}>
+          <label>First day</label>
+          <input
+            type="number"
+            value={draft.startOffset}
+            onChange={(e) => setDraft({ ...draft, startOffset: Number(e.target.value) })}
+          />
+        </div>
+        <div style={{ width: 80 }}>
+          <label>Interval</label>
+          <input
+            type="number"
+            min={0}
+            value={draft.intervalDays}
+            onChange={(e) => setDraft({ ...draft, intervalDays: Number(e.target.value) })}
+          />
+        </div>
+        <div style={{ width: 64 }}>
+          <label>Count</label>
+          <input
+            type="number"
+            min={1}
+            value={draft.occurrences}
+            onChange={(e) => setDraft({ ...draft, occurrences: Number(e.target.value) })}
+          />
+        </div>
+        <div style={{ width: 70 }}>
+          <label>Subs</label>
           <input
             type="number"
             min={1}
@@ -784,16 +850,16 @@ function CoreMeasurements({
             onChange={(e) => setDraft({ ...draft, subsamples: Number(e.target.value) })}
           />
         </div>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <label>Formula (optional → calculated column)</label>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <label>Formula (optional → calculated)</label>
           <input
             value={draft.formula}
-            placeholder="e.g. abbott([1])  or  ([1]+[2])/2"
+            placeholder="e.g. abbott([1])"
             onChange={(e) => setDraft({ ...draft, formula: e.target.value })}
           />
         </div>
         <button className="primary" onClick={add} disabled={!!formulaError}>
-          + Add measurement
+          + Add
         </button>
       </div>
       {calc && (
@@ -802,14 +868,48 @@ function CoreMeasurements({
             <span style={{ color: '#b00020' }}>⚠ {formulaError}</span>
           ) : (
             <span className="muted">
-              Reference measurements by column number —{' '}
+              Reference assessments by column number —{' '}
               {defs
-                .map((d, i) => `[${i + 1}] ${d.description || d.measurementType || 'Measurement'}`)
+                .map((d, i) => `[${i + 1}] ${d.description || d.measurementType || 'Assessment'}`)
                 .join('   ')}
-              {defs.length === 0 && 'no measurements to reference yet'}. Use control([n]) or
-              abbott([n]) for % of untreated control.
+              {defs.length === 0 && 'none to reference yet'}. Use control([n]) or abbott([n]) for % of
+              untreated control.
             </span>
           )}
+        </div>
+      )}
+
+      {allOffsets.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <h3 style={{ margin: '0 0 8px' }}>Schedule</h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data schedule-grid">
+              <thead>
+                <tr>
+                  <th style={{ width: 60 }}>Day</th>
+                  <th style={{ width: 110 }}>Date</th>
+                  {scheduled.map((s, i) => (
+                    <th key={i} className="num">
+                      {s.d.measurementType || `#${i + 1}`}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {allOffsets.map((off) => (
+                  <tr key={off}>
+                    <td className="num">{off}</td>
+                    <td className="muted">{dateForOffset(startDate, off) || '—'}</td>
+                    {scheduled.map((s, i) => (
+                      <td key={i} className="num">
+                        {s.offsets.includes(off) ? <span className="sched-hit">●</span> : ''}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -1108,3 +1108,13 @@ table.report-crosstab tfoot .crosstab-stat td {
 .report-crosstab tfoot .sticky-col {
   background: #f6f8fa;
 }
+
+/* Assessment schedule grid (protocol builder) */
+.schedule-grid td,
+.schedule-grid th {
+  text-align: center;
+}
+.schedule-grid .sched-hit {
+  color: var(--accent);
+  font-size: 14px;
+}

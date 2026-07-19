@@ -17,6 +17,12 @@ export const runtime = 'nodejs'
 const STATEMENTS: string[] = [
   `ALTER TABLE "protocol" ADD COLUMN IF NOT EXISTS "start_date" text NOT NULL DEFAULT ''`,
   `ALTER TABLE "application" ADD COLUMN IF NOT EXISTS "day_offset" integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE "measurement_def" ADD COLUMN IF NOT EXISTS "start_offset" integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE "measurement_def" ADD COLUMN IF NOT EXISTS "interval_days" integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE "measurement_def" ADD COLUMN IF NOT EXISTS "occurrences" integer NOT NULL DEFAULT 1`,
+  `ALTER TABLE "measurement_header" ADD COLUMN IF NOT EXISTS "start_offset" integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE "measurement_header" ADD COLUMN IF NOT EXISTS "interval_days" integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE "measurement_header" ADD COLUMN IF NOT EXISTS "occurrences" integer NOT NULL DEFAULT 1`,
 ]
 
 async function run() {
