@@ -258,3 +258,207 @@ slice right after Phase 1, growing just enough of B/C/D/E to support it, then ge
   scanned signed sheets keep ART defensible as a system of record.
 - **Customer surface is a separate read path**, never a hidden edit view; treatment-level visibility
   is part of the RBAC model, designed in from the start.
+
+---
+
+## Appendix A — Build register
+
+Every discrete build from planning, with a **stable ID** so it can be found and tracked. Conventions
+for interrogating this with Claude Code:
+
+- **Find a build:** grep its ID, e.g. `B21` or `B21c`. Every reference across the repo uses the same ID.
+- **Status tokens** (greppable): `status: not-started` · `in-progress` · `done` · `blocked` · `parked`.
+- **Phase / Theme** map to §5 (T0–T11) and §7 (Phase 0–6).
+- When a build starts, add a `touches:` list of the real files changed and flip its status.
+
+### Index
+
+| ID | Build | Theme | Phase | Status | Depends on |
+|----|-------|-------|-------|--------|-----------|
+| B1 | Protocol builder: pull from an API'd external DB (generic) | B / T3 | 2 | not-started | — |
+| B2 | Customer field on protocol (company + contact) | T3 | 4 | not-started | B1, Customer adapter |
+| B3 | Responsible persons (Research Mgr, Study Director, Trials Officer) | T2 | 3 | not-started | A (Entra) |
+| B4 | Entra login prioritises trial-library order | T2 | 3 | not-started | A |
+| B5 | Audit log shows Entra identity of the editor | T2 | 3 | not-started | A |
+| B6 | Parse historic trials (assessment sheets / master tables) | T9 | 5 | not-started | C |
+| B7 | Blob storage for historic protocol documents | C / T9 | 2 | not-started | C |
+| B8 | Protocol builder emits a report in a template | T3 / D | 4 | not-started | D |
+| B9 | Versioned protocol reports in blob (v1.0/v1.1/…) | T3 / C | 4 | not-started | C, B8 |
+| B10 | Protocol-report changes shown on the audit log | T3 | 4 | not-started | B5, B9 |
+| B11 | Trial map: add blank / filler plots | T5 | 4 | not-started | T1 |
+| B12 | Trial map: thick black block-boundary lines | T5 | 4 | not-started | — |
+| B13 | Trial map: N/S/E/W compass | T5 | 4 | not-started | — |
+| B14 | Connect plot map to the field-planner mapping tool | T5 | 6 | not-started | Map adapter |
+| B15 | Simplify treatment / label scheme (A,B,C,D) | T4 | 4 | not-started | *decision #1* |
+| B16 | Hybrid assessment-timing model | T4 / E | 4 | not-started | *decision #2* |
+| B17 | Investigate "locked" assessment/treatment dates | T4 | 4 | not-started | — |
+| B18 | Separate Assessment-Dates / schedule section | T4 / E | 4 | not-started | B16 |
+| B19 | Fixed-format Excel exports (filing system) | T7 / D | 4 | not-started | D |
+| B20 | Customer visit sheet (map + data-to-today + upcoming grid) | T6 / D | 4 | not-started | D, B18 |
+| B21 | Weigh / application sheet (per treatment) | T6 / D | 4 | not-started | D, Weather adapter, C |
+| B22 | Per-plot image collection tool | T10 / C | 6 | not-started | C |
+| B23 | Drone ortho image cut-up per plot | T10 | 6 | not-started | B14, B22 |
+| B24 | Image presentation surface for customers | T10 / T2 | 6 | not-started | B22, B25 |
+| B25 | Customer non-editable section (admin-controlled) | T2 | 3 | not-started | A |
+| B26 | Report writer: versions | T8 / C | 4 | not-started | C |
+| B27 | Report writer: Discussion / Results / Future Work inputs | T8 | 4 | not-started | — |
+| B28 | Report writer: Word template + stored versions | T8 / D | 4 | not-started | D, B26 |
+| B29 | Dataviz "fiddle-then-pin" explorer (reuse existing code) | T11 | 6 | parked | Stats engine, D, E |
+
+### Detail
+
+Each entry: what it is, its consumer, and the code it will most likely touch (from the current tree).
+
+#### B1 · Protocol builder — pull from an API'd external database
+`status: not-started` · phase 2 · theme B/T3
+Generic capability to populate protocol fields from an external DB via an adapter interface + mock now,
+real API later. Consumer: B2 (and any future coded source). Touches: new `src/lib/sources/*` adapter
+interfaces, `src/components/ProtocolDetailPage.tsx`.
+
+#### B2 · Customer field on a protocol (company + contact)
+`status: not-started` · phase 4 · theme T3
+Pick a customer (company + contact) from the Customer adapter. Consumer: reports, visit sheet (B20),
+weigh sheet (B21), customer↔access mapping (B25). Touches: `schema.ts` (protocol), `ProtocolDetailPage.tsx`,
+Customer adapter.
+
+#### B3 · Responsible persons (Research Manager, Study Director, Trials Officer)
+`status: not-started` · phase 3 · theme T2
+Assign people to a trial from Entra. Consumer: reports, weigh/visit sheets, audit. Touches: `schema.ts`
+(trial), `TrialDetailPage.tsx`/`SiteView.tsx`, People (Entra) adapter.
+
+#### B4 · Entra login prioritises trial-library order
+`status: not-started` · phase 3 · theme T2
+Sort the trial list so the signed-in user's trials surface first. Touches: `src/app/trial/page.tsx`,
+`api/trial/route.ts`, identity context.
+
+#### B5 · Audit log shows the Entra identity
+`status: not-started` · phase 3 · theme T2
+Replace the header-trusted `actor` with the verified Entra identity on every audit write. Touches: all
+`api/**/route.ts` audit inserts, `api/trial/[id]/audit/route.ts`, `AuditView.tsx`.
+
+#### B6 · Parse historic trials (assessment sheets / master data tables)
+`status: not-started` · phase 5 · theme T9
+Import legacy trials: upload → column-map → preview → commit; unmapped fields → notes/properties.
+*Decision #4* sets fidelity (archival / structural / tiered). Touches: new import module + UI, `schema.ts`.
+
+#### B7 · Blob storage for historic protocol documents
+`status: not-started` · phase 2 · theme C/T9
+Store original historic protocol files in the document store (C). Touches: document-store service,
+Azure Blob adapter.
+
+#### B8 · Protocol builder emits a report in a template
+`status: not-started` · phase 4 · theme T3/D
+Render a protocol summary through the template engine (D). Consumer: filing, approval, trial book.
+Touches: template engine, `ProtocolDetailPage.tsx`, `ReportView.tsx` patterns.
+
+#### B9 · Versioned protocol reports in blob (v1.0 / v1.1 / …)
+`status: not-started` · phase 4 · theme T3/C
+Each emitted report is versioned and stored in the document store; ties to immutable distributed
+protocol versions. Touches: document store (C), protocol versioning in `schema.ts`.
+
+#### B10 · Protocol-report changes shown on the audit log
+`status: not-started` · phase 4 · theme T3
+Every protocol/report change writes an attributed audit entry. Depends on B5 (identity) + B9 (versioning).
+Touches: audit writes on protocol routes, `AuditView.tsx`.
+
+#### B11 · Trial map — add blank / filler plots
+`status: not-started` · phase 4 · theme T5
+Allow non-treatment blank plots in the layout; excluded from analysis, shown on the map/prints. Touches:
+`api/trial/[id]/generate/route.ts`, `plot` schema, `src/lib/stats/buildData.ts` (omit blanks),
+`TrialMapView.tsx`/`PlotGrid.tsx`.
+
+#### B12 · Trial map — thick black block-boundary lines
+`status: not-started` · phase 4 · theme T5
+Extend the existing alpha block-boundary rendering to draw thick lines around blocks for all designs.
+Touches: `TrialMapView.tsx` (block-boundary logic already present for alpha), print CSS.
+
+#### B13 · Trial map — N/S/E/W compass
+`status: not-started` · phase 4 · theme T5
+Orientation compass on screen and on printed maps. Touches: `TrialMapView.tsx`, print layouts.
+
+#### B14 · Connect plot map to the field-planner mapping tool
+`status: not-started` · phase 6 · theme T5
+Integrate ART's plot map with the existing planner (plot geometry / field position) via the Map adapter.
+Prerequisite for B23. Touches: Map adapter, `TrialMapView.tsx`, `plot` geometry fields.
+
+#### B15 · Simplify treatment / label scheme
+`status: not-started` · phase 4 · theme T4 · **blocked on decision #1**
+Rework the A/B/C(/treatment-number/combined) labelling that feels unwieldy. Touches: `schema.ts`,
+`TreatmentProgram.tsx`, `ApplicationsView.tsx`, `src/shared/timing.ts`.
+
+#### B16 · Hybrid assessment-timing model
+`status: not-started` · phase 4 · theme T4/E · **blocked on decision #2**
+Time assessments by calendar date / days-after-planting / days-after-application / growth-stage trigger
+(and possibly interval series), not only "N DA-application". Touches: `src/shared/timing.ts`,
+`TimingField.tsx`, `measurement_def`/`measurement_header` schema, `MeasurementsView.tsx`.
+
+#### B17 · Investigate "locked" assessment/treatment dates
+`status: not-started` · phase 4 · theme T4
+Confirm the protocol(abstract)→trial(actual) date split is the cause and decide any UX change. Touches:
+`ApplicationsView.tsx`, `TimingField.tsx`. (Investigation — likely folds into B16/B18.)
+
+#### B18 · Separate Assessment-Dates / schedule section
+`status: not-started` · phase 4 · theme T4/E
+Trial-side view (like Applications) projecting each assessment's date from planting + actual application
+dates, and recording actuals. Consumer: B20, data sheets, time-series charts. Touches: new schedule view,
+`measurement_header` dates, `TrialDetailPage.tsx`.
+
+#### B19 · Fixed-format Excel exports
+`status: not-started` · phase 4 · theme T7/D
+Export at defined workflow points in a fixed layout matching your filing system. Touches: template/export
+engine (D), export endpoints.
+
+#### B20 · Customer visit sheet
+`status: not-started` · phase 4 · theme T6/D
+Print: plot map + data-to-today + an empty grid beyond for selected upcoming assessment metrics. Touches:
+template engine (D), `DocumentsView.tsx`, schedule model (B18).
+
+#### B21 · Weigh / application sheet (per treatment)
+`status: not-started` · phase 4 · theme T6/D
+Generated from each treatment entry. Sub-parts:
+- **B21a** plot map · **B21b** area per plot · **B21c** product amount to weigh out
+  (`rate × plot area` + unit conversion — the roadmap's product/rate calc) · **B21d** mixing instructions ·
+  **B21e** sprayer + other template fields · **B21f** weather (Weather adapter) · **B21g** signature box ·
+  **B21h** scan/image the signed sheet into blob storage (longer term).
+Touches: template engine (D), Weather adapter, document store (C), `treatment`/`treatment_application`
+schema, `DocumentsView.tsx`.
+
+#### B22 · Per-plot image collection tool
+`status: not-started` · phase 6 · theme T10/C
+Attach images to allocated plots (or all). Touches: document store (C), new image UI, `plot` linkage.
+
+#### B23 · Drone ortho image cut-up per plot
+`status: not-started` · phase 6 · theme T10
+Georeference a whole-field image and clip it per plot. Gated on plot geometry from B14. Touches: Map
+adapter/geometry, image pipeline, document store (C).
+
+#### B24 · Image presentation surface for customers
+`status: not-started` · phase 6 · theme T10/T2
+Collected images shown to customers for presentations, via the read-only customer surface. Touches: B22
+store, customer view (B25), presentation UI.
+
+#### B25 · Customer non-editable section (admin-controlled)
+`status: not-started` · phase 3 · theme T2
+A hard, separate read path exposing only approved artifacts; admin controls what's shared; includes
+treatment-level visibility (hide selected treatments from a customer everywhere). Touches: RBAC middleware
+(A), customer routes/views.
+
+#### B26 · Report writer — versions
+`status: not-started` · phase 4 · theme T8/C
+Store report versions in the document store, audit-linked. Touches: document store (C), `ReportView.tsx`.
+
+#### B27 · Report writer — Discussion / Results / Future Work inputs
+`status: not-started` · phase 4 · theme T8
+Add the new authored sections (review the current report inputs first). Touches: `ReportView.tsx`, report
+data model.
+
+#### B28 · Report writer — Word template + stored versions
+`status: not-started` · phase 4 · theme T8/D
+Emit the report through a Word template; store each version (B26). Touches: template engine (D), document
+store (C).
+
+#### B29 · Dataviz "fiddle-then-pin" explorer
+`status: parked` · phase 6 · theme T11
+Interactive explorer: tweak a chart, hide treatments (shares the subset/visibility mechanism with B25),
+pin the chosen figure into the report. **Reuse the user's existing charting program** rather than build
+fresh. Touches: new viz module, stats engine, template engine (D), timing model (E, for time-series).
