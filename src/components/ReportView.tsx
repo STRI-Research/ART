@@ -356,7 +356,10 @@ export function ReportView({ trialId }: { trialId: number }) {
     }
     const cell = (c: string | number): string => {
       let s = String(c)
-      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
+      // Neutralize CSV/Excel formula injection, but don't mangle a genuine negative/decimal number
+      // (e.g. a -32.2 % control) into text.
+      const isNumeric = typeof c === 'number' || /^-?\d*\.?\d+$/.test(s)
+      if (!isNumeric && /^[=+\-@\t\r]/.test(s)) s = `'${s}`
       return `"${s.replace(/"/g, '""')}"`
     }
     const csv = rows.map((r) => r.map(cell).join(',')).join('\n')

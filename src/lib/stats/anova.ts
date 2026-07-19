@@ -152,25 +152,33 @@ interface RawMean {
 }
 
 /**
- * Assign mean-separation letters using the standard "overlapping runs" compact-letter-display
- * algorithm: sort means descending, then for every starting rank i extend a new letter group to the
- * farthest rank j such that the two extreme means (i and j) are not significantly different. Because
- * `critFn` may depend on the number of means spanned (SNK), this is checked at each step rather than
- * assuming a single constant critical value.
+ * Assign mean-separation letters (compact letter display). Means are lettered in ascending order so
+ * `a` is the smallest mean, matching conventional agronomy reports. For each rank i we extend to the
+ * farthest rank j whose mean is not significantly greater than mean[i] — that run [i, j] is a maximal
+ * set of mutually non-significant means (a clique). A new letter is emitted only when the run reaches
+ * *beyond* the previous letter's run; otherwise the run is already covered and emitting a letter would
+ * just proliferate redundant ones. Every treatment then carries the letters of all runs containing it,
+ * so any two non-significant means share at least one letter and any two significant means share none.
+ * `critFn` may depend on the number of means spanned (SNK), so it is evaluated per step.
  */
 function assignLetters(sorted: RawMean[], critFn: (span: number) => number): Map<number, string> {
   const n = sorted.length
   const letters = new Map<number, string>()
   for (const m of sorted) letters.set(m.treatment, '')
-  let nextLetter = 0
+  const asc = [...sorted].sort((a, b) => a.mean - b.mean)
+  let group = 0
+  let prevEnd = -1
   for (let i = 0; i < n; i++) {
     let j = i
-    while (j + 1 < n && sorted[i].mean - sorted[j + 1].mean <= critFn(j + 1 - i + 1)) {
+    while (j + 1 < n && asc[j + 1].mean - asc[i].mean <= critFn(j + 1 - i + 1)) {
       j++
     }
-    const letter = letterFor(nextLetter++)
-    for (let k = i; k <= j; k++) {
-      letters.set(sorted[k].treatment, (letters.get(sorted[k].treatment) ?? '') + letter)
+    if (j > prevEnd) {
+      const letter = letterFor(group++)
+      for (let k = i; k <= j; k++) {
+        letters.set(asc[k].treatment, (letters.get(asc[k].treatment) ?? '') + letter)
+      }
+      prevEnd = j
     }
   }
   return letters
