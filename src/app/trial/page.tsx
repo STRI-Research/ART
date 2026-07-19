@@ -29,9 +29,7 @@ export default function TrialListPage() {
       <div className="cta-row" style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0, fontSize: 22 }}>Trials</h1>
         <div className="row" style={{ gap: 8 }}>
-          <button className="link" onClick={() => router.push('/trial/import')}>
-            Import sheet
-          </button>
+          <button onClick={() => router.push('/trial/import')}>Import from Spreadsheet</button>
           <button className="primary" onClick={() => router.push('/trial/new')}>
             + New Trial
           </button>

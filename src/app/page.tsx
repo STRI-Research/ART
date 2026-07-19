@@ -64,6 +64,18 @@ export default function Home() {
             <button onClick={() => router.push('/trial')}>View Trials</button>
           </div>
         </div>
+        <div className="card">
+          <h2>Import a Historic Trial</h2>
+          <p className="muted">
+            Bring an existing trial in from an STRI assessment-sheet workbook
+            (.xlsx): treatments, plots, and every dated measurement, in one step.
+          </p>
+          <div className="row">
+            <button className="primary" onClick={() => router.push('/trial/import')}>
+              Import from Spreadsheet
+            </button>
+          </div>
+        </div>
       </div>
 
       {!loading && (protocols.length > 0 || trials.length > 0) && (
