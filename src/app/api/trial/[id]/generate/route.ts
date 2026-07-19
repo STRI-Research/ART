@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
+import { withTransaction } from '@/lib/db/tx'
 import { trial, protocol, treatment, plot, measurementValue, measurementHeader, auditLog } from '@/lib/db/schema'
 import { eq, asc } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   }
 
   // Atomic: replacing the layout must not leave the trial with zero/partial plots if a step fails.
-  await db.transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     await tx.delete(plot).where(eq(plot.trialId, trialId))
     await tx.insert(plot).values(
       newPlots.map((p, i) => ({

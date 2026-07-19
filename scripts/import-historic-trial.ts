@@ -26,7 +26,7 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { getDb } from '../src/lib/db'
+import { withTransaction } from '../src/lib/db/tx'
 import {
   protocol,
   treatment,
@@ -193,8 +193,7 @@ async function main() {
     process.exit(1)
   }
 
-  const db = getDb()
-  await db.transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     const [proto] = await tx
       .insert(protocol)
       .values({ title, crop, design, replicates: reps.length })

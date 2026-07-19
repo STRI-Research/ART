@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import ExcelJS from 'exceljs'
-import { getDb } from '@/lib/db'
 import {
   parseAssessmentWorkbook,
   insertParsedTrial,
@@ -43,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const res = await insertParsedTrial(getDb(), parsed)
+    const res = await insertParsedTrial(parsed)
     return NextResponse.json({ ...res, summary: parsed.summary, title: parsed.title })
   } catch (e) {
     // Surface the real cause — this is an internal tool and the message is needed to diagnose.

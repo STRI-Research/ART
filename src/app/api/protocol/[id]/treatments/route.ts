@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
+import { withTransaction } from '@/lib/db/tx'
 import { protocol, treatment, treatmentApplication, trial, auditLog } from '@/lib/db/schema'
 import { asc, eq, inArray, sql } from 'drizzle-orm'
 import { Treatment } from '@shared/types'
@@ -65,7 +66,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 
   // Atomic: clear + re-insert treatments and their application lines together, so a mid-way failure
   // can't leave the protocol with missing or partial treatments.
-  const { insertedTreatments, insertedApps } = await db.transaction(async (tx) => {
+  const { insertedTreatments, insertedApps } = await withTransaction(async (tx) => {
     await tx.delete(treatment).where(eq(treatment.protocolId, protocolId))
 
     // A single multi-row INSERT ... RETURNING preserves the input order, so the returned

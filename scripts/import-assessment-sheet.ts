@@ -16,7 +16,6 @@
  */
 
 import ExcelJS from 'exceljs'
-import { getDb } from '../src/lib/db'
 import { parseAssessmentWorkbook, insertParsedTrial } from '../src/lib/import/assessmentSheet'
 
 function arg(name: string): string | undefined {
@@ -59,7 +58,7 @@ async function main() {
     process.exit(1)
   }
 
-  const res = await insertParsedTrial(getDb(), parsed)
+  const res = await insertParsedTrial(parsed)
   console.log(`Imported trial #${res.trialId} (protocol #${res.protocolId}) — ${res.headerCount} measurement columns, ${res.valueCount} values. Open /trial/${res.trialId}.`)
 }
 

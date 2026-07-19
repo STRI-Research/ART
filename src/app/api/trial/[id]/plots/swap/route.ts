@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
+import { withTransaction } from '@/lib/db/tx'
 import { trial, protocol, plot, auditLog } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   }
 
   // Atomic: a partial swap would leave both plots with the same treatment — a corrupted design.
-  await db.transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     await tx.update(plot).set({ treatmentId: b.treatmentId }).where(eq(plot.id, a.id))
     await tx.update(plot).set({ treatmentId: a.treatmentId }).where(eq(plot.id, b.id))
   })

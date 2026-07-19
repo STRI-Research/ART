@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
+import { withTransaction } from '@/lib/db/tx'
 import { trial, applicationActual, auditLog } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
@@ -28,7 +29,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     .map((a) => ({ trialId, timingCode: a.timingCode!, actualDate: a.actualDate ?? '' }))
 
   // Atomic: clear + re-insert together so a failure can't drop all actual dates.
-  await db.transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     await tx.delete(applicationActual).where(eq(applicationActual.trialId, trialId))
     if (rows.length > 0) await tx.insert(applicationActual).values(rows)
   })

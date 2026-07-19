@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
+import { withTransaction } from '@/lib/db/tx'
 import { trial, plot, auditLog } from '@/lib/db/schema'
 import { eq, asc } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const plotRows = Math.ceil(plots.length / cols)
 
   // Atomic: a partial reshape would leave the grid half in the old layout and half in the new one.
-  await db.transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     for (let i = 0; i < plots.length; i++) {
       await tx
         .update(plot)

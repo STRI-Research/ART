@@ -8,12 +8,10 @@
  */
 
 import type ExcelJS from 'exceljs'
-import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
-import * as schema from '../db/schema'
 import { protocol, treatment, trial, plot, measurementHeader, measurementValue } from '../db/schema'
+import { withTransaction } from '../db/tx'
 
 type Cell = ExcelJS.Cell
-type Db = NeonDatabase<typeof schema>
 
 export interface ParsedAssessmentTrial {
   title: string
@@ -179,8 +177,8 @@ export function parseAssessmentWorkbook(
   }
 }
 
-export async function insertParsedTrial(db: Db, parsed: ParsedAssessmentTrial): Promise<ImportResult> {
-  return db.transaction(async (tx) => {
+export async function insertParsedTrial(parsed: ParsedAssessmentTrial): Promise<ImportResult> {
+  return withTransaction(async (tx) => {
     const [proto] = await tx
       .insert(protocol)
       .values({ title: parsed.title, design: parsed.design, replicates: parsed.reps })

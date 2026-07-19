@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
+import { withTransaction } from '@/lib/db/tx'
 import { trial, property, auditLog } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
@@ -40,7 +41,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     .map((p) => ({ trialId, scope, scopeRef, key: p.key!, value: p.value ?? '' }))
 
   // Atomic: replace this scope's properties as a unit so a failure can't drop them all.
-  await db.transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     await tx
       .delete(property)
       .where(and(eq(property.trialId, trialId), eq(property.scope, scope), eq(property.scopeRef, scopeRef)))

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { getDb } from '@/lib/db'
+import { withTransaction } from '@/lib/db/tx'
 import { libraryTerm } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import type { LibraryExport } from '@shared/types'
@@ -16,12 +16,11 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const db = getDb()
   let imported = 0
   let merged = 0
 
   // Atomic: import the whole file as a unit so a mid-way failure can't leave a partial merge.
-  await db.transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     for (const term of body.terms) {
       if (!term.category || !term.value) continue
 

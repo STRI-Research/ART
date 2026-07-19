@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
+import { withTransaction } from '@/lib/db/tx'
 import { protocol, application, trial, auditLog } from '@/lib/db/schema'
 import { asc, eq, sql } from 'drizzle-orm'
 import { Application } from '@shared/types'
@@ -41,7 +42,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   if (!parsed.success) return badRequest(parsed.error.message)
 
   // Atomic: clear + re-insert the applications together so a failure can't leave a partial set.
-  const saved = await db.transaction(async (tx) => {
+  const saved = await withTransaction(async (tx) => {
     await tx.delete(application).where(eq(application.protocolId, protocolId))
     return parsed.data.length
       ? await tx
