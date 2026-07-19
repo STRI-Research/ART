@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "import:trial": "tsx scripts/import-historic-trial.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
@@ -42,6 +43,7 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.3.3",
     "prettier": "^3.9.4",
+    "tsx": "^4.23.1",
     "typescript": "^5.7.3",
     "vitest": "^4.1.10"
   }

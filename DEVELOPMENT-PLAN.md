@@ -280,7 +280,7 @@ for interrogating this with Claude Code:
 | B3 | Responsible persons (Research Mgr, Study Director, Trials Officer) | T2 | 3 | not-started | A (Entra) |
 | B4 | Entra login prioritises trial-library order | T2 | 3 | not-started | A |
 | B5 | Audit log shows Entra identity of the editor | T2 | 3 | not-started | A |
-| B6 | Parse historic trials (assessment sheets / master tables) | T9 | 5 | not-started | C |
+| B6 | Parse historic trials (assessment sheets / master tables) | T9 | 5 | in-progress | C |
 | B7 | Blob storage for historic protocol documents | C / T9 | 2 | not-started | C |
 | B8 | Protocol builder emits a report in a template | T3 / D | 4 | not-started | D |
 | B9 | Versioned protocol reports in blob (v1.0/v1.1/…) | T3 / C | 4 | not-started | C, B8 |
@@ -337,9 +337,13 @@ Replace the header-trusted `actor` with the verified Entra identity on every aud
 `api/**/route.ts` audit inserts, `api/trial/[id]/audit/route.ts`, `AuditView.tsx`.
 
 #### B6 · Parse historic trials (assessment sheets / master data tables)
-`status: not-started` · phase 5 · theme T9
+`status: in-progress` · phase 5 · theme T9
 Import legacy trials: upload → column-map → preview → commit; unmapped fields → notes/properties.
-*Decision #4* sets fidelity (archival / structural / tiered). Touches: new import module + UI, `schema.ts`.
+*Decision #4* sets fidelity (archival / structural / tiered).
+First cut shipped: `scripts/import-historic-trial.ts` — a standalone CSV importer for a
+pre-laid-out trial (creates protocol + treatments + plots + measurement columns/values in one
+transaction), run via `npm run import:trial <file.csv> [--dry-run]`. The column-mapping UI and
+support for messier sheets is the remaining work. touches: `scripts/import-historic-trial.ts`.
 
 #### B7 · Blob storage for historic protocol documents
 `status: not-started` · phase 2 · theme C/T9
