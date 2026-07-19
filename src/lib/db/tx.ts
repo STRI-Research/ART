@@ -1,35 +1,21 @@
-import { Pool, neonConfig } from '@neondatabase/serverless'
-import { drizzle, type NeonDatabase } from 'drizzle-orm/neon-serverless'
-import ws from 'ws'
+import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 import * as schema from './schema'
+import { getDb } from './index'
 
-// Interactive multi-statement transactions need the WebSocket-backed serverless driver (the neon-http
-// driver in ./index.ts cannot do them). In a serverless runtime a WebSocket Pool must NOT be cached
-// across invocations — the socket goes stale and the next call fails with "Connection terminated
-// unexpectedly". So we open a FRESH pool per transaction and close it in `finally`, with a small retry
-// for Neon's scale-to-zero cold start (the first connection can drop while compute wakes).
-neonConfig.webSocketConstructor = ws
-
-type TxDb = NeonDatabase<typeof schema>
-export type Tx = Parameters<Parameters<TxDb['transaction']>[0]>[0]
-
-const TRANSIENT = /terminated|connection|ECONNRESET|socket|fetch failed|timeout/i
+/**
+ * Runs a set of write statements for the callers that were grouped as a "transaction".
+ *
+ * Interactive WebSocket transactions (drizzle-orm/neon-serverless) do NOT work in this serverless
+ * environment — establishing the socket hangs until the function times out. So these operations run
+ * over the reliable neon-http driver instead.
+ *
+ * CAVEAT: neon-http sends each statement as its own HTTP request, so this is sequential and NOT
+ * atomic. It is safe for create-only flows (a failed run leaves a deletable partial record). For the
+ * destructive delete-then-insert flows, atomicity should be restored with a single-request batch
+ * (`db.batch([...])`, Neon's non-interactive HTTP transaction) — tracked as follow-up.
+ */
+export type Tx = NeonHttpDatabase<typeof schema>
 
 export async function withTransaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
-  const url = process.env.POSTGRES_URL
-  if (!url) throw new Error('POSTGRES_URL is not set.')
-
-  const maxAttempts = 3
-  for (let attempt = 1; ; attempt++) {
-    const pool = new Pool({ connectionString: url })
-    try {
-      return await drizzle(pool, { schema }).transaction(fn)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      if (attempt < maxAttempts && TRANSIENT.test(msg)) continue // transient — retry with a fresh pool
-      throw e
-    } finally {
-      await pool.end().catch(() => {})
-    }
-  }
+  return fn(getDb())
 }
