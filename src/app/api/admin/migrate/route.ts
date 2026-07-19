@@ -1,35 +1,22 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { sql } from 'drizzle-orm'
+import { ADDITIVE_STATEMENTS } from '@/lib/db/schemaSync'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 /**
- * Bootstrap schema-sync endpoint. Runs the additive, idempotent DDL needed to bring the database up
- * to the current schema, using the deploy's own DB connection — so a schema change can be applied
- * without a local `npm run db:push`. Every statement is `ADD COLUMN IF NOT EXISTS`, so re-running is
- * a no-op and it can never drop or alter existing data.
+ * On-demand schema-sync endpoint. Runs the same additive, idempotent DDL as `ensureSchema()` on the
+ * deploy's own DB connection — a manual trigger for the self-healing that also runs on the read path.
  *
- * TEMPORARY: this is unauthenticated bootstrap tooling. Gate or remove it once app-level auth (Entra)
- * exists — it should not remain an open endpoint on a multi-user deployment.
+ * TEMPORARY: unauthenticated bootstrap tooling. Gate or remove once app-level auth (Entra) exists.
  */
-const STATEMENTS: string[] = [
-  `ALTER TABLE "protocol" ADD COLUMN IF NOT EXISTS "start_date" text NOT NULL DEFAULT ''`,
-  `ALTER TABLE "application" ADD COLUMN IF NOT EXISTS "day_offset" integer NOT NULL DEFAULT 0`,
-  `ALTER TABLE "measurement_def" ADD COLUMN IF NOT EXISTS "start_offset" integer NOT NULL DEFAULT 0`,
-  `ALTER TABLE "measurement_def" ADD COLUMN IF NOT EXISTS "interval_days" integer NOT NULL DEFAULT 0`,
-  `ALTER TABLE "measurement_def" ADD COLUMN IF NOT EXISTS "occurrences" integer NOT NULL DEFAULT 1`,
-  `ALTER TABLE "measurement_header" ADD COLUMN IF NOT EXISTS "start_offset" integer NOT NULL DEFAULT 0`,
-  `ALTER TABLE "measurement_header" ADD COLUMN IF NOT EXISTS "interval_days" integer NOT NULL DEFAULT 0`,
-  `ALTER TABLE "measurement_header" ADD COLUMN IF NOT EXISTS "occurrences" integer NOT NULL DEFAULT 1`,
-]
-
 async function run() {
   const db = getDb()
   const applied: string[] = []
   try {
-    for (const stmt of STATEMENTS) {
+    for (const stmt of ADDITIVE_STATEMENTS) {
       await db.execute(sql.raw(stmt))
       applied.push(stmt)
     }

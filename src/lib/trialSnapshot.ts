@@ -1,5 +1,6 @@
 import { eq, asc, inArray } from 'drizzle-orm'
 import type { getDb } from '@/lib/db'
+import { ensureSchema } from '@/lib/db/schemaSync'
 import {
   trial,
   protocol,
@@ -20,6 +21,7 @@ type Db = ReturnType<typeof getDb>
  *  trial-side record. Mirrors the Electron app's ProjectSnapshot so ported components can
  *  keep the same shape after a fetch/mutation. */
 export async function getTrialSnapshot(db: Db, trialId: number) {
+  await ensureSchema() // apply any pending additive columns before selecting them
   const [tr] = await db.select().from(trial).where(eq(trial.id, trialId))
   if (!tr) return null
 

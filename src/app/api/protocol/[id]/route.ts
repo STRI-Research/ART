@@ -10,6 +10,7 @@ import {
   auditLog,
 } from '@/lib/db/schema'
 import { eq, asc, sql } from 'drizzle-orm'
+import { ensureSchema } from '@/lib/db/schemaSync'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,7 @@ function badRequest(msg: string) {
 export async function GET(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
   const db = getDb()
+  await ensureSchema()
 
   const [proto] = await db
     .select()
@@ -80,6 +82,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 export async function PUT(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
   const db = getDb()
+  await ensureSchema()
 
   const [proto] = await db
     .select()
