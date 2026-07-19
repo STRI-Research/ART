@@ -340,15 +340,17 @@ Replace the header-trusted `actor` with the verified Entra identity on every aud
 `status: in-progress` · phase 5 · theme T9
 Import legacy trials: upload → column-map → preview → commit; unmapped fields → notes/properties.
 *Decision #4* sets fidelity (archival / structural / tiered).
-First cuts shipped (standalone importers, one transaction each; verified against a real file):
-- `scripts/import-assessment-sheet.ts` — the STRI assessment-sheet workbook format (one sheet per
-  assessment date + a Trial Plan sheet). Reconstructs protocol + treatments (Untreated → check) +
-  plots + one date-stamped measurement header per (measurement × date) + values. Run via
-  `npm run import:sheet <file.xlsx> [--dry-run]`.
-- `scripts/import-historic-trial.ts` — a simpler flat-CSV importer (`npm run import:trial`).
-Remaining B6 work: the in-app column-mapping UI, the fidelity decision (#4), and messier sheets
-(merged headers, subsamples, multi-factor Treat2). touches: `scripts/import-assessment-sheet.ts`,
-`scripts/import-historic-trial.ts`.
+First cuts shipped (STRI assessment-sheet format: one sheet per assessment date + a Trial Plan
+sheet → protocol + treatments (Untreated → check) + plots + one date-stamped measurement header
+per (measurement × date) + values, in one transaction; verified against a real file):
+- **In-app upload** — `/trial/import` page + `POST /api/import/assessment-sheet` route, sharing the
+  parser in `src/lib/import/assessmentSheet.ts`. Upload from the browser, no CLI.
+- **CLI** — `npm run import:sheet <file.xlsx> [--dry-run]` (`scripts/import-assessment-sheet.ts`),
+  plus a simpler flat-CSV importer `npm run import:trial` (`scripts/import-historic-trial.ts`).
+Remaining B6 work: column-mapping for arbitrary sheets, the fidelity decision (#4), and messier
+inputs (merged headers, subsamples, multi-factor Treat2). touches:
+`src/lib/import/assessmentSheet.ts`, `src/app/trial/import/page.tsx`,
+`src/app/api/import/assessment-sheet/route.ts`, `scripts/import-assessment-sheet.ts`.
 
 #### B7 · Blob storage for historic protocol documents
 `status: not-started` · phase 2 · theme C/T9

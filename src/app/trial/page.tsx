@@ -28,12 +28,14 @@ export default function TrialListPage() {
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px' }}>
       <div className="cta-row" style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0, fontSize: 22 }}>Trials</h1>
-        <button
-          className="primary"
-          onClick={() => router.push('/trial/new')}
-        >
-          + New Trial
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          <button className="link" onClick={() => router.push('/trial/import')}>
+            Import sheet
+          </button>
+          <button className="primary" onClick={() => router.push('/trial/new')}>
+            + New Trial
+          </button>
+        </div>
       </div>
 
       {trials.length === 0 ? (
