@@ -76,10 +76,17 @@ export function TrialDetailPage({ id }: { id: number }) {
     return () => clearTimeout(t)
   }, [notice])
 
-  if (loading || !snap) {
+  if (loading) {
     return (
       <div style={{ padding: 24 }}>
         <p className="muted">Loading trial…</p>
+      </div>
+    )
+  }
+  if (!snap) {
+    return (
+      <div style={{ padding: 24 }}>
+        <p style={{ color: 'var(--danger)' }}>{error ?? 'Failed to load trial.'}</p>
       </div>
     )
   }
