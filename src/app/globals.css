@@ -1020,3 +1020,74 @@ table.datasheet .sub-cell:not(:last-child) {
 .modal textarea {
   width: 100%;
 }
+
+/* ---------------------------------------------------------------------------
+   Report — metric tabs, cross-tab tables, line-chart legend (B29/report)
+   --------------------------------------------------------------------------- */
+.metric-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.metric-tab {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.metric-tab:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+.metric-tab.active {
+  background: var(--accent);
+  border-color: var(--accent-dark);
+  color: #fff;
+}
+
+table.report-crosstab th,
+table.report-crosstab td {
+  white-space: nowrap;
+}
+table.report-crosstab tfoot .crosstab-stat th,
+table.report-crosstab tfoot .crosstab-stat td {
+  background: #f6f8fa;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sep-letters {
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text, #1f2328);
+}
+.legend-swatch {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.metric-hidden {
+  display: none;
+}
+@media print {
+  .metric-hidden {
+    display: block !important;
+  }
+}
