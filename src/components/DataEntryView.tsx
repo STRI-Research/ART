@@ -205,17 +205,29 @@ export function DataEntryView({
   const pendingRef = useRef<Map<string, MeasurementValue>>(new Map())
   const flushTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const flush = async (): Promise<void> => {
-    const changes = [...pendingRef.current.values()]
-    pendingRef.current.clear()
-    if (changes.length === 0) return
+    // Snapshot with keys, but DO NOT clear the queue up front: a save may fail, and a change dropped
+    // from the queue before the network call would be lost while the UI still showed it as entered.
+    const entries = [...pendingRef.current.entries()]
+    if (entries.length === 0) return
     setSaving(true)
-    try {
-      await Promise.all(changes.map((c) => api.measurements.setValue(trialId, c)))
-    } finally {
-      setSaving(false)
-    }
+    const results = await Promise.allSettled(
+      entries.map(([, c]) => api.measurements.setValue(trialId, c))
+    )
+    let anyFailed = false
+    results.forEach((r, i) => {
+      const [k, c] = entries[i]
+      if (r.status === 'fulfilled') {
+        // Clear only if a newer edit for this cell hasn't superseded the value we just saved.
+        if (pendingRef.current.get(k) === c) pendingRef.current.delete(k)
+      } else {
+        anyFailed = true // leave it queued; it retries on the next edit or on unmount
+      }
+    })
+    setSaving(false)
+    setSaveError(anyFailed ? 'Some changes could not be saved — they will be retried.' : null)
   }
 
   // Flush any pending edits shortly after the user stops typing, and on unmount so nothing is lost.
@@ -308,6 +320,9 @@ export function DataEntryView({
           <h2 style={{ margin: 0 }}>Enter Data</h2>
           <div className="row" style={{ gap: 12, alignItems: 'baseline' }}>
             {saving && <span className="muted" style={{ fontSize: 12 }}>Saving…</span>}
+            {saveError && (
+              <span style={{ fontSize: 12, color: 'var(--danger)' }}>{saveError}</span>
+            )}
             <button className="link" onClick={onEditColumns}>
               ← Edit columns
             </button>

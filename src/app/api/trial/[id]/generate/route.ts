@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { trial, protocol, treatment, plot, auditLog } from '@/lib/db/schema'
+import { trial, protocol, treatment, plot, measurementValue, measurementHeader, auditLog } from '@/lib/db/schema'
 import { eq, asc } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 import { validateDesign, defaultCols } from '@shared/design'
@@ -119,6 +119,21 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   const plotRows = Math.ceil(newPlots.length / cols)
   const treatmentIdByNumber = new Map(treatments.map((t) => [t.number, t.id]))
+
+  // Guard against silently destroying recorded data: regenerating deletes all plots, which cascades
+  // to their measurement values. If any data has been entered, require an explicit force flag.
+  const force = (body as { force?: boolean })?.force === true
+  const [hasData] = await db
+    .select({ plotId: measurementValue.plotId })
+    .from(measurementValue)
+    .innerJoin(measurementHeader, eq(measurementValue.measurementHeaderId, measurementHeader.id))
+    .where(eq(measurementHeader.trialId, trialId))
+    .limit(1)
+  if (hasData && !force) {
+    return badRequest(
+      'This trial already has recorded measurement data; regenerating the layout would delete it. Clear the data or pass { force: true } to confirm.'
+    )
+  }
 
   await db.delete(plot).where(eq(plot.trialId, trialId))
 
