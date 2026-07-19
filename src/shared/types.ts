@@ -304,28 +304,6 @@ export const MeasurementValue = z.object({
 export type MeasurementValue = z.infer<typeof MeasurementValue>
 
 // ---------------------------------------------------------------------------
-// Randomization request/response (main <-> R)
-// ---------------------------------------------------------------------------
-export const RandomizeRequest = z.object({
-  design: DesignType,
-  treatments: z.number().int().min(2),
-  replicates: z.number().int().min(2),
-  /** Incomplete-block size (k) for ALPHA; unused by RCB/CRD. */
-  blockSize: z.number().int().min(2).optional(),
-  seed: z.number().int()
-})
-export type RandomizeRequest = z.infer<typeof RandomizeRequest>
-
-/** One randomized plot as returned by R: order = field order (plot sequence). */
-export interface RandomizedPlot {
-  order: number
-  rep: number
-  /** Incomplete block within the replicate (ALPHA); equals `rep` for complete-block designs. */
-  block: number
-  treatment: number // treatment *number* (1-based), mapped to treatmentId by caller
-}
-
-// ---------------------------------------------------------------------------
 // ANOVA request/response
 // ---------------------------------------------------------------------------
 export const AovRequest = z.object({
@@ -386,17 +364,6 @@ export interface AovResult {
 }
 
 // ---------------------------------------------------------------------------
-// Environment / R detection
-// ---------------------------------------------------------------------------
-export interface REnvStatus {
-  rscriptFound: boolean
-  rscriptPath: string | null
-  version: string | null
-  agricolaeInstalled: boolean
-  message: string
-}
-
-// ---------------------------------------------------------------------------
 // Project bundle (everything the renderer needs after opening a file)
 // ---------------------------------------------------------------------------
 export interface ProjectSnapshot {
@@ -418,21 +385,6 @@ export interface ProjectSnapshot {
   libraryTerms: LibraryTerm[]
 }
 
-/**
- * Per-document print geometry passed to the PDF export. Electron's `printToPDF` options override CSS
- * `@page`, so each printable document supplies its own page size, orientation, margins, and whether
- * the running "ART / page-number" header+footer should show (wanted on the report, not on a field
- * map or a label sheet). Omitted fields fall back to the report defaults (A4, portrait, header on).
- */
-export interface PrintProfile {
-  pageSize?: 'A4' | 'Letter'
-  landscape?: boolean
-  /** Page margins in inches. */
-  margins?: { top: number; bottom: number; left: number; right: number }
-  /** Show the ART title header + page-number footer (default true). */
-  header?: boolean
-}
-
 // ---------------------------------------------------------------------------
 // Audit trail (GEP/GLP)
 // ---------------------------------------------------------------------------
@@ -445,11 +397,4 @@ export interface AuditEntry {
   entity: string
   summary: string // human-readable, includes old -> new where relevant
   detail: Record<string, unknown>
-}
-
-/** Standard envelope returned by the R runner. */
-export interface RResponse<T> {
-  ok: boolean
-  result?: T
-  error?: string
 }

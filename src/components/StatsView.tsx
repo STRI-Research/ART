@@ -129,14 +129,14 @@ export function StatsView({
         )}
         {isAlpha && headers.length > 0 && (
           <p className="muted" style={{ marginBottom: 0 }}>
-            Incomplete-block (alpha) design: this JavaScript statistics engine doesn't yet implement the
+            Incomplete-block (alpha) design: this JavaScript statistics engine doesn&apos;t yet implement the
             REML/PBIB fit these designs need — analysis will return a note instead of a result.
           </p>
         )}
         {!isAlpha && test === 'DUNCAN' && headers.length > 0 && (
           <p className="muted" style={{ marginBottom: 0 }}>
-            Duncan's Multiple Range Test isn't implemented — Fisher's LSD grouping is shown instead
-            (critical value labelled "LSD*").
+            Duncan&apos;s Multiple Range Test isn&apos;t implemented — Fisher&apos;s LSD grouping is shown instead
+            (critical value labelled &quot;LSD*&quot;).
           </p>
         )}
         {error && (

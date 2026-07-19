@@ -200,7 +200,6 @@ export function DataEntryView({
               rowData.kind === 'base' ? subCount(h) > 1 : (rowData.sub as number) > subCount(h),
       })),
     ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [headers, maxSub])
 
   const pendingRef = useRef<Map<string, MeasurementValue>>(new Map())

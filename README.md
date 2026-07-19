@@ -1,5 +1,11 @@
 # ART
 
+> **⚠️ Architecture note (2026): this README is being rewritten.** ART has moved from the original
+> **Electron + R/`agricolae` + local SQLite desktop app** to a **Next.js + Neon Postgres web app**
+> deployed on Vercel. Any sections below describing Electron, embedded R, `better-sqlite3`, or
+> packaged installers are **out of date**. For the current architecture see [`CLAUDE.md`](CLAUDE.md);
+> for direction and the build backlog see [`DEVELOPMENT-PLAN.md`](DEVELOPMENT-PLAN.md).
+
 An open-source **Agricultural Research Tool** — a cross-platform desktop app for planning,
 randomizing, collecting, and analyzing agricultural field trials, covering the full workflow:
 

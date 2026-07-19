@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { api, type TrialSnapshot } from '@/lib/api'
 import { StatsView } from '@/components/StatsView'
 import { ReportView } from '@/components/ReportView'
@@ -46,7 +45,6 @@ const NAV: NavItem[] = [
 ]
 
 export function TrialDetailPage({ id }: { id: number }) {
-  const router = useRouter()
   const [snap, setSnap] = useState<TrialSnapshot | null>(null)
   const [view, setView] = useState<ViewId>('site')
   const [loading, setLoading] = useState(true)
@@ -86,7 +84,6 @@ export function TrialDetailPage({ id }: { id: number }) {
     )
   }
 
-  const hasLayout = snap.plots.length > 0
   const layoutLocked = !!snap.trial.layoutLockedAt
 
   const stepDone = (navId: ViewId): boolean =>

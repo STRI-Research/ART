@@ -19,7 +19,6 @@ const DOC_TITLE: Record<DocKind, string> = {
   summary: 'Trial Summary'
 }
 
-const IN_PER_MM = 1 / 25.4
 const PX_PER_MM = 96 / 25.4 // CSS px per mm at 96dpi
 
 /** Largest square cell (px) that fits `cols` columns across `printableMm` of page width. */

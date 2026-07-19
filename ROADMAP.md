@@ -1,5 +1,11 @@
 # ART Roadmap
 
+> **⚠️ Superseded (2026).** This roadmap was written for the retired **Electron + R + SQLite
+> desktop app** and its "shipped / gap / v1.0 installer" framing no longer reflects reality (ART is
+> now a Next.js + Neon web app on Vercel). The current plan lives in
+> [`DEVELOPMENT-PLAN.md`](DEVELOPMENT-PLAN.md); this file is kept for historical context only.
+
+
 ART is an open-source, cross-platform alternative to [ARM](https://gdmdata.com/products/arm)
 (Agricultural Research Manager) — the long-standing commercial standard for planning, randomizing,
 collecting, and analyzing agricultural field trials. This document sets out where ART is today, an

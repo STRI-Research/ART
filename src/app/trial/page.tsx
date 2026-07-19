@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { api, type TrialSummary, type ProtocolSummary } from '@/lib/api'
+import { api, type TrialSummary } from '@/lib/api'
 
 export default function TrialListPage() {
   const router = useRouter()

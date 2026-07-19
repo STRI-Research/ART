@@ -16,11 +16,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # postinstall builds better-sqlite3 for Electron; the tests need the Node ABI, so rebuild it.
-      # (See CONTRIBUTING.md — the better-sqlite3 ABI dance.)
       - run: npm ci
-      - run: npm run rebuild:node
-
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

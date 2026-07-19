@@ -106,7 +106,7 @@ export function LibraryView() {
       <h2>Library</h2>
       <p className="muted">
         The shared personal vocabulary, built up as trials are authored. Terms are suggested as you
-        type, ranked by the crops they've been used on.
+        type, ranked by the crops they&apos;ve been used on.
       </p>
 
       <div className="row" style={{ marginBottom: 12 }}>
