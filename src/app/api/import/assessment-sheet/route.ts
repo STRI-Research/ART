@@ -45,7 +45,13 @@ export async function POST(req: NextRequest) {
   try {
     const res = await insertParsedTrial(getDb(), parsed)
     return NextResponse.json({ ...res, summary: parsed.summary, title: parsed.title })
-  } catch {
-    return NextResponse.json({ error: 'Import failed while writing to the database.' }, { status: 500 })
+  } catch (e) {
+    // Surface the real cause — this is an internal tool and the message is needed to diagnose.
+    console.error('assessment-sheet import failed:', e)
+    const detail = e instanceof Error ? e.message : String(e)
+    return NextResponse.json(
+      { error: `Import failed while writing to the database: ${detail}` },
+      { status: 500 }
+    )
   }
 }

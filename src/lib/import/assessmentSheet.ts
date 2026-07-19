@@ -235,14 +235,17 @@ export async function insertParsedTrial(db: Db, parsed: ParsedAssessmentTrial): 
       )
       .returning()
 
-    const valueRows: { measurementHeaderId: number; plotId: number; subsample: number; value: number }[] = []
+    // De-duplicate by the value primary key (header, plot, subsample); a repeated plot row in a
+    // sheet would otherwise violate it. Last value wins.
+    const valueByKey = new Map<string, { measurementHeaderId: number; plotId: number; subsample: number; value: number }>()
     parsed.valuesBySpec.forEach((vals, specIndex) => {
       const headerId = insertedHeaders[specIndex].id
       for (const { plotNumber, value } of vals) {
         const plotId = plotIdByNumber.get(plotNumber)
-        if (plotId != null) valueRows.push({ measurementHeaderId: headerId, plotId, subsample: 1, value })
+        if (plotId != null) valueByKey.set(`${headerId}:${plotId}:1`, { measurementHeaderId: headerId, plotId, subsample: 1, value })
       }
     })
+    const valueRows = [...valueByKey.values()]
     for (let i = 0; i < valueRows.length; i += 1000) {
       await tx.insert(measurementValue).values(valueRows.slice(i, i + 1000))
     }
