@@ -20,15 +20,18 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const [tr] = await db.select().from(trial).where(eq(trial.id, trialId))
   if (!tr) return badRequest('Trial not found')
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
   const list: { timingCode?: string; actualDate?: string }[] = Array.isArray(body) ? body : []
-
-  await db.delete(applicationActual).where(eq(applicationActual.trialId, trialId))
 
   const rows = list
     .filter((a) => (a.timingCode ?? '').trim())
     .map((a) => ({ trialId, timingCode: a.timingCode!, actualDate: a.actualDate ?? '' }))
-  if (rows.length > 0) await db.insert(applicationActual).values(rows)
+
+  // Atomic: clear + re-insert together so a failure can't drop all actual dates.
+  await db.transaction(async (tx) => {
+    await tx.delete(applicationActual).where(eq(applicationActual.trialId, trialId))
+    if (rows.length > 0) await tx.insert(applicationActual).values(rows)
+  })
 
   try {
     const codes = rows.map((r) => r.timingCode)

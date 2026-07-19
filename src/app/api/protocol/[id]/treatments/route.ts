@@ -57,39 +57,49 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const parsed = z.array(Treatment).safeParse(await req.json())
   if (!parsed.success) return badRequest(parsed.error.message)
 
-  await db.delete(treatment).where(eq(treatment.protocolId, protocolId))
+  // Empty set: a single delete is atomic on its own.
+  if (parsed.data.length === 0) {
+    await db.delete(treatment).where(eq(treatment.protocolId, protocolId))
+    return NextResponse.json([])
+  }
 
-  if (parsed.data.length === 0) return NextResponse.json([])
+  // Atomic: clear + re-insert treatments and their application lines together, so a mid-way failure
+  // can't leave the protocol with missing or partial treatments.
+  const { insertedTreatments, insertedApps } = await db.transaction(async (tx) => {
+    await tx.delete(treatment).where(eq(treatment.protocolId, protocolId))
 
-  // A single multi-row INSERT ... RETURNING preserves the input order, so the returned
-  // rows line up positionally with parsed.data for building the application lines below.
-  const insertedTreatments = await db
-    .insert(treatment)
-    .values(
-      parsed.data.map((t) => ({
-        protocolId,
-        number: t.number,
-        name: t.name ?? '',
-        type: t.type ?? '',
-        isCheck: t.isCheck ?? false,
+    // A single multi-row INSERT ... RETURNING preserves the input order, so the returned
+    // rows line up positionally with parsed.data for building the application lines below.
+    const insertedTreatments = await tx
+      .insert(treatment)
+      .values(
+        parsed.data.map((t) => ({
+          protocolId,
+          number: t.number,
+          name: t.name ?? '',
+          type: t.type ?? '',
+          isCheck: t.isCheck ?? false,
+        }))
+      )
+      .returning()
+
+    const appRows = parsed.data.flatMap((t, i) =>
+      (t.applications ?? []).map((a, j) => ({
+        treatmentId: insertedTreatments[i].id,
+        ordinal: a.ordinal ?? j,
+        applicationRef: a.applicationRef ?? '',
+        product: a.product ?? '',
+        rate: a.rate ?? '',
+        rateUnit: a.rateUnit ?? '',
       }))
     )
-    .returning()
 
-  const appRows = parsed.data.flatMap((t, i) =>
-    (t.applications ?? []).map((a, j) => ({
-      treatmentId: insertedTreatments[i].id,
-      ordinal: a.ordinal ?? j,
-      applicationRef: a.applicationRef ?? '',
-      product: a.product ?? '',
-      rate: a.rate ?? '',
-      rateUnit: a.rateUnit ?? '',
-    }))
-  )
+    const insertedApps = appRows.length
+      ? await tx.insert(treatmentApplication).values(appRows).returning()
+      : []
 
-  const insertedApps = appRows.length
-    ? await db.insert(treatmentApplication).values(appRows).returning()
-    : []
+    return { insertedTreatments, insertedApps }
+  })
 
   const appsByTreatment = new Map<number, typeof insertedApps>()
   for (const a of insertedApps) {

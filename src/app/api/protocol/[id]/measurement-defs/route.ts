@@ -40,29 +40,31 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const parsed = z.array(MeasurementDef).safeParse(await req.json())
   if (!parsed.success) return badRequest(parsed.error.message)
 
-  await db.delete(measurementDef).where(eq(measurementDef.protocolId, protocolId))
-
-  const saved = parsed.data.length
-    ? await db
-        .insert(measurementDef)
-        .values(
-          parsed.data.map((d, i) => ({
-            protocolId,
-            partMeasured: d.partMeasured ?? '',
-            measurementType: d.measurementType ?? '',
-            measurementUnit: d.measurementUnit ?? '',
-            applicationRef: d.applicationRef ?? '',
-            daysAfter: d.daysAfter ?? null,
-            timing: d.timing ?? '',
-            description: d.description ?? '',
-            ordinal: d.ordinal ?? i,
-            analyze: d.analyze ?? true,
-            subsamples: d.subsamples ?? 1,
-            formula: d.formula ?? '',
-          }))
-        )
-        .returning()
-    : []
+  // Atomic: clear + re-insert the definitions together so a failure can't leave a partial set.
+  const saved = await db.transaction(async (tx) => {
+    await tx.delete(measurementDef).where(eq(measurementDef.protocolId, protocolId))
+    return parsed.data.length
+      ? await tx
+          .insert(measurementDef)
+          .values(
+            parsed.data.map((d, i) => ({
+              protocolId,
+              partMeasured: d.partMeasured ?? '',
+              measurementType: d.measurementType ?? '',
+              measurementUnit: d.measurementUnit ?? '',
+              applicationRef: d.applicationRef ?? '',
+              daysAfter: d.daysAfter ?? null,
+              timing: d.timing ?? '',
+              description: d.description ?? '',
+              ordinal: d.ordinal ?? i,
+              analyze: d.analyze ?? true,
+              subsamples: d.subsamples ?? 1,
+              formula: d.formula ?? '',
+            }))
+          )
+          .returning()
+      : []
+  })
 
   try {
     await db.insert(auditLog).values({

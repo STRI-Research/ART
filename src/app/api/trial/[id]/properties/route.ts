@@ -29,19 +29,23 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const [tr] = await db.select().from(trial).where(eq(trial.id, trialId))
   if (!tr) return badRequest('Trial not found')
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body || typeof body !== 'object') return badRequest('Invalid request body')
   const scope = String(body.scope ?? 'trial')
   const scopeRef = String(body.scopeRef ?? '')
   const props: { key?: string; value?: string }[] = Array.isArray(body.props) ? body.props : []
 
-  await db
-    .delete(property)
-    .where(and(eq(property.trialId, trialId), eq(property.scope, scope), eq(property.scopeRef, scopeRef)))
-
   const rows = props
     .filter((p) => (p.key ?? '').trim())
     .map((p) => ({ trialId, scope, scopeRef, key: p.key!, value: p.value ?? '' }))
-  if (rows.length > 0) await db.insert(property).values(rows)
+
+  // Atomic: replace this scope's properties as a unit so a failure can't drop them all.
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(property)
+      .where(and(eq(property.trialId, trialId), eq(property.scope, scope), eq(property.scopeRef, scopeRef)))
+    if (rows.length > 0) await tx.insert(property).values(rows)
+  })
 
   try {
     await db.insert(auditLog).values({

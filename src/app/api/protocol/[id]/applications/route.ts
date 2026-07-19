@@ -40,22 +40,24 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const parsed = z.array(Application).safeParse(await req.json())
   if (!parsed.success) return badRequest(parsed.error.message)
 
-  await db.delete(application).where(eq(application.protocolId, protocolId))
-
-  const saved = parsed.data.length
-    ? await db
-        .insert(application)
-        .values(
-          parsed.data.map((a, i) => ({
-            protocolId,
-            ordinal: a.ordinal ?? i,
-            timingCode: a.timingCode ?? '',
-            targetGrowthStage: a.targetGrowthStage ?? '',
-            description: a.description ?? '',
-          }))
-        )
-        .returning()
-    : []
+  // Atomic: clear + re-insert the applications together so a failure can't leave a partial set.
+  const saved = await db.transaction(async (tx) => {
+    await tx.delete(application).where(eq(application.protocolId, protocolId))
+    return parsed.data.length
+      ? await tx
+          .insert(application)
+          .values(
+            parsed.data.map((a, i) => ({
+              protocolId,
+              ordinal: a.ordinal ?? i,
+              timingCode: a.timingCode ?? '',
+              targetGrowthStage: a.targetGrowthStage ?? '',
+              description: a.description ?? '',
+            }))
+          )
+          .returning()
+      : []
+  })
 
   try {
     await db.insert(auditLog).values({

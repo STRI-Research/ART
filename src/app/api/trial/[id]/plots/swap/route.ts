@@ -26,7 +26,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const [proto] = await db.select().from(protocol).where(eq(protocol.id, tr.protocolId))
   if (!proto) return badRequest('Protocol not found')
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body || typeof body !== 'object') return badRequest('Invalid request body')
   const [a] = await db.select().from(plot).where(eq(plot.id, Number(body.plotIdA)))
   const [b] = await db.select().from(plot).where(eq(plot.id, Number(body.plotIdB)))
   if (!a || !b || a.trialId !== trialId || b.trialId !== trialId) return badRequest('Plot not found')
@@ -35,8 +36,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     return badRequest('Treatments can only be swapped within the same block/rep — that would change the design.')
   }
 
-  await db.update(plot).set({ treatmentId: b.treatmentId }).where(eq(plot.id, a.id))
-  await db.update(plot).set({ treatmentId: a.treatmentId }).where(eq(plot.id, b.id))
+  // Atomic: a partial swap would leave both plots with the same treatment — a corrupted design.
+  await db.transaction(async (tx) => {
+    await tx.update(plot).set({ treatmentId: b.treatmentId }).where(eq(plot.id, a.id))
+    await tx.update(plot).set({ treatmentId: a.treatmentId }).where(eq(plot.id, b.id))
+  })
 
   try {
     await db.insert(auditLog).values({

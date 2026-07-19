@@ -135,24 +135,25 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     )
   }
 
-  await db.delete(plot).where(eq(plot.trialId, trialId))
-
-  await db.insert(plot).values(
-    newPlots.map((p, i) => ({
-      trialId,
-      plotNumber: p.plotNumber,
-      rep: p.rep,
-      block: p.block,
-      treatmentId: treatmentIdByNumber.get(p.treatmentNumber)!,
-      mapRow: Math.floor(i / cols),
-      mapCol: i % cols,
-    }))
-  )
-
-  await db
-    .update(trial)
-    .set({ plotRows, plotCols: cols, seed, updatedAt: new Date() })
-    .where(eq(trial.id, trialId))
+  // Atomic: replacing the layout must not leave the trial with zero/partial plots if a step fails.
+  await db.transaction(async (tx) => {
+    await tx.delete(plot).where(eq(plot.trialId, trialId))
+    await tx.insert(plot).values(
+      newPlots.map((p, i) => ({
+        trialId,
+        plotNumber: p.plotNumber,
+        rep: p.rep,
+        block: p.block,
+        treatmentId: treatmentIdByNumber.get(p.treatmentNumber)!,
+        mapRow: Math.floor(i / cols),
+        mapCol: i % cols,
+      }))
+    )
+    await tx
+      .update(trial)
+      .set({ plotRows, plotCols: cols, seed, updatedAt: new Date() })
+      .where(eq(trial.id, trialId))
+  })
 
   try {
     await db.insert(auditLog).values({
