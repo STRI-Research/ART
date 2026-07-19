@@ -340,10 +340,15 @@ Replace the header-trusted `actor` with the verified Entra identity on every aud
 `status: in-progress` · phase 5 · theme T9
 Import legacy trials: upload → column-map → preview → commit; unmapped fields → notes/properties.
 *Decision #4* sets fidelity (archival / structural / tiered).
-First cut shipped: `scripts/import-historic-trial.ts` — a standalone CSV importer for a
-pre-laid-out trial (creates protocol + treatments + plots + measurement columns/values in one
-transaction), run via `npm run import:trial <file.csv> [--dry-run]`. The column-mapping UI and
-support for messier sheets is the remaining work. touches: `scripts/import-historic-trial.ts`.
+First cuts shipped (standalone importers, one transaction each; verified against a real file):
+- `scripts/import-assessment-sheet.ts` — the STRI assessment-sheet workbook format (one sheet per
+  assessment date + a Trial Plan sheet). Reconstructs protocol + treatments (Untreated → check) +
+  plots + one date-stamped measurement header per (measurement × date) + values. Run via
+  `npm run import:sheet <file.xlsx> [--dry-run]`.
+- `scripts/import-historic-trial.ts` — a simpler flat-CSV importer (`npm run import:trial`).
+Remaining B6 work: the in-app column-mapping UI, the fidelity decision (#4), and messier sheets
+(merged headers, subsamples, multi-factor Treat2). touches: `scripts/import-assessment-sheet.ts`,
+`scripts/import-historic-trial.ts`.
 
 #### B7 · Blob storage for historic protocol documents
 `status: not-started` · phase 2 · theme C/T9
