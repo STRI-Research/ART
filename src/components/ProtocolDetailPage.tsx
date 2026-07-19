@@ -219,6 +219,21 @@ export function ProtocolDetailPage({ id }: { id: number }) {
           </div>
 
           <div className="card">
+            <h2>Client &amp; Team</h2>
+            <p className="muted">
+              Who the trial is for and who&apos;s responsible. Free text for now; these will be picked
+              from the customer database and your Entra team later, and are what trial filtering keys off.
+            </p>
+            <div className="field-grid">
+              {field('client', 'Client (company)')}
+              {field('contact', 'Contact name')}
+              {field('researchManager', 'Research Manager')}
+              {field('studyDirector', 'Study Director')}
+              {field('trialsOfficer', 'Trials Officer')}
+            </div>
+          </div>
+
+          <div className="card">
             <h2>Experimental Design</h2>
             <p className="muted">
               Dictated to all trial sites. Sites re-randomize with their own seed but keep this

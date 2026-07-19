@@ -125,6 +125,13 @@ export const Protocol = z.object({
   blockSize: z.number().int().min(2).default(2),
   plotWidth: z.number().default(0),
   plotLength: z.number().default(0),
+  /** Client (customer company) and the contact for this trial. Wired to the Customer DB later. */
+  client: z.string().default(''),
+  contact: z.string().default(''),
+  /** Responsible team (from Entra later): research manager, study director, trials officer. */
+  researchManager: z.string().default(''),
+  studyDirector: z.string().default(''),
+  trialsOfficer: z.string().default(''),
   /** Trial start date (day 0); applications/assessments are timed as day-offsets from here. */
   startDate: z.string().default('')
 })

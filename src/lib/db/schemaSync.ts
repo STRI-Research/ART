@@ -12,6 +12,11 @@ import { sql } from 'drizzle-orm'
  */
 export const ADDITIVE_STATEMENTS: string[] = [
   `ALTER TABLE "protocol" ADD COLUMN IF NOT EXISTS "start_date" text NOT NULL DEFAULT ''`,
+  `ALTER TABLE "protocol" ADD COLUMN IF NOT EXISTS "client" text NOT NULL DEFAULT ''`,
+  `ALTER TABLE "protocol" ADD COLUMN IF NOT EXISTS "contact" text NOT NULL DEFAULT ''`,
+  `ALTER TABLE "protocol" ADD COLUMN IF NOT EXISTS "research_manager" text NOT NULL DEFAULT ''`,
+  `ALTER TABLE "protocol" ADD COLUMN IF NOT EXISTS "study_director" text NOT NULL DEFAULT ''`,
+  `ALTER TABLE "protocol" ADD COLUMN IF NOT EXISTS "trials_officer" text NOT NULL DEFAULT ''`,
   `ALTER TABLE "application" ADD COLUMN IF NOT EXISTS "day_offset" integer NOT NULL DEFAULT 0`,
   `ALTER TABLE "measurement_def" ADD COLUMN IF NOT EXISTS "start_offset" integer NOT NULL DEFAULT 0`,
   `ALTER TABLE "measurement_def" ADD COLUMN IF NOT EXISTS "interval_days" integer NOT NULL DEFAULT 0`,

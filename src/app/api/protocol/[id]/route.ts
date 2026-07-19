@@ -118,6 +118,11 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
       blockSize: body.blockSize ?? proto.blockSize,
       plotWidth: body.plotWidth ?? proto.plotWidth,
       plotLength: body.plotLength ?? proto.plotLength,
+      client: body.client ?? proto.client,
+      contact: body.contact ?? proto.contact,
+      researchManager: body.researchManager ?? proto.researchManager,
+      studyDirector: body.studyDirector ?? proto.studyDirector,
+      trialsOfficer: body.trialsOfficer ?? proto.trialsOfficer,
       startDate: body.startDate ?? proto.startDate,
       updatedAt: new Date(),
     })
@@ -125,7 +130,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     .returning()
 
   try {
-    const fields = ['title','crop','targetPest','objective','investigator','season','notes','design','replicates','blockSize','plotWidth','plotLength']
+    const fields = ['title','crop','targetPest','objective','investigator','season','notes','design','replicates','blockSize','plotWidth','plotLength','client','contact','researchManager','studyDirector','trialsOfficer']
     const changed = fields.filter((f) => body[f] !== undefined && body[f] !== (proto as Record<string, unknown>)[f])
     await db.insert(auditLog).values({
       protocolId: proto.id,

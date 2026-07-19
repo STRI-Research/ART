@@ -30,6 +30,13 @@ export const protocol = pgTable('protocol', {
   blockSize: integer('block_size').notNull().default(2),
   plotWidth: real('plot_width').notNull().default(0),
   plotLength: real('plot_length').notNull().default(0),
+  // Client + responsible team. Plain fields for now (Customer DB / Entra sources wired later); kept
+  // structured so trials can be filtered by client, contact, or team member.
+  client: text('client').notNull().default(''),
+  contact: text('contact').notNull().default(''),
+  researchManager: text('research_manager').notNull().default(''),
+  studyDirector: text('study_director').notNull().default(''),
+  trialsOfficer: text('trials_officer').notNull().default(''),
   // Schedule anchor: the trial's start date (first application / day 0). Applications and assessments
   // are timed as day-offsets from here (one protocol = one trial, so a real date lives here).
   startDate: text('start_date').notNull().default(''),
