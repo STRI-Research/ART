@@ -1091,3 +1091,20 @@ table.report-crosstab tfoot .crosstab-stat td {
     display: block !important;
   }
 }
+
+/* Freeze the treatment column while scrolling the many date columns. */
+.report-crosstab .sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  box-shadow: 1px 0 0 var(--border);
+}
+.report-crosstab thead .sticky-col {
+  background: #eef0f3;
+}
+.report-crosstab tbody .sticky-col {
+  background: #fff;
+}
+.report-crosstab tfoot .sticky-col {
+  background: #f6f8fa;
+}

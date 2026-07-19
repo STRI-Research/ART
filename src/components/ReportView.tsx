@@ -75,7 +75,7 @@ function MetricTable({
       <table className="data report-crosstab">
         <thead>
           <tr>
-            <th rowSpan={2} style={{ textAlign: 'left', minWidth: 150 }}>
+            <th rowSpan={2} className="sticky-col" style={{ textAlign: 'left', minWidth: 150 }}>
               Treatment
             </th>
             {group.headers.map((h) => (
@@ -98,7 +98,7 @@ function MetricTable({
         <tbody>
           {trts.map((t) => (
             <tr key={t.number}>
-              <td>
+              <td className="sticky-col">
                 [{t.number}] {t.name || `Treatment ${t.number}`}
               </td>
               {group.headers.map((h) => {
@@ -124,7 +124,7 @@ function MetricTable({
         <tfoot>
           {(['P', 'LSD', 'd.f.', '%c.v.'] as const).map((label) => (
             <tr key={label} className="crosstab-stat">
-              <th style={{ textAlign: 'left' }}>{label}</th>
+              <th className="sticky-col" style={{ textAlign: 'left' }}>{label}</th>
               {group.headers.map((h) => {
                 const r = results[h.id!]
                 let v = '—'
