@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
 import { measurementHeader, auditLog } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,11 +50,12 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     .returning()
 
   try {
+    const actor = await getActor()
     const label = updated.description || updated.measurementType || `measurement ${updated.ordinal}`
     await db.insert(auditLog).values({
       trialId,
       role: 'trial',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'measurement.header.edit',
       entity: `measurement_header:${existing.id}`,
       summary: `Edited measurement column "${label}"`,
@@ -77,11 +79,12 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   await db.delete(measurementHeader).where(eq(measurementHeader.id, existing.id))
 
   try {
+    const actor = await getActor()
     const label = existing.description || existing.measurementType || `measurement ${existing.ordinal}`
     await db.insert(auditLog).values({
       trialId,
       role: 'trial',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'measurement.header.delete',
       entity: `measurement_header:${existing.id}`,
       summary: `Deleted measurement column "${label}"`,

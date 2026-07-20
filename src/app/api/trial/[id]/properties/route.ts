@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db'
 import { trial, property, auditLog } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,10 +45,11 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   if (rows.length > 0) await db.insert(property).values(rows)
 
   try {
+    const actor = await getActor()
     await db.insert(auditLog).values({
       trialId,
       role: 'trial',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'properties.save',
       entity: `trial:${trialId}`,
       summary: `Saved ${rows.length} propert${rows.length === 1 ? 'y' : 'ies'} (scope: ${scope}${scopeRef ? `, ref: ${scopeRef}` : ''})`,

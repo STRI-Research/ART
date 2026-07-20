@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db'
 import { trial, plot, auditLog } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,10 +32,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   await db.update(plot).set({ excluded, excludeReason: reason }).where(eq(plot.id, p.id))
 
   try {
+    const actor = await getActor()
     await db.insert(auditLog).values({
       trialId,
       role: 'trial',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: excluded ? 'plot.exclude' : 'plot.include',
       entity: `plot:${p.id}`,
       summary: excluded

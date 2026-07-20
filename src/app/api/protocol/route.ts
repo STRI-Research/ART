@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
 import { protocol, treatment, auditLog } from '@/lib/db/schema'
 import { sql, desc } from 'drizzle-orm'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,10 +36,11 @@ export async function POST(req: NextRequest) {
     .returning()
 
   try {
+    const actor = await getActor()
     await db.insert(auditLog).values({
       protocolId: row.id,
       role: 'protocol',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'protocol.create',
       entity: `protocol:${row.id}`,
       summary: `Created new protocol "${row.title ?? '(untitled)'}" (UID ${uid})`,

@@ -116,6 +116,57 @@ body {
 .app-header .spacer {
   flex: 1;
 }
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.user-name {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sign-out-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.sign-out-btn:hover {
+  background: #eef0f3;
+  color: var(--text);
+}
+.sign-in-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--bg);
+}
+.sign-in-card {
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 48px 40px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+.sign-in-card h1 {
+  font-size: 28px;
+  color: var(--accent-dark);
+  margin: 0 0 4px;
+}
+.sign-in-card p {
+  color: var(--muted);
+  margin: 0 0 28px;
+}
+.sign-in-btn {
+  padding: 10px 28px;
+  font-size: 15px;
+}
 .saved-flash {
   font-size: 12px;
   font-weight: 600;

@@ -4,6 +4,7 @@ import { protocol, treatment, treatmentApplication, trial, auditLog } from '@/li
 import { asc, eq, inArray, sql } from 'drizzle-orm'
 import { Treatment } from '@shared/types'
 import { z } from 'zod'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -99,10 +100,11 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   }
 
   try {
+    const actor = await getActor()
     await db.insert(auditLog).values({
       protocolId,
       role: 'protocol',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'treatments.replace',
       entity: `protocol:${protocolId}`,
       summary: `Replaced treatments for protocol ${protocolId} — ${insertedTreatments.length} treatment(s)`,

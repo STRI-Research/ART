@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db'
 import { trial, plot, auditLog } from '@/lib/db/schema'
 import { eq, asc } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,10 +42,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   await db.update(trial).set({ plotRows, plotCols: cols, updatedAt: new Date() }).where(eq(trial.id, trialId))
 
   try {
+    const actor = await getActor()
     await db.insert(auditLog).values({
       trialId,
       role: 'trial',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'layout.reshape',
       entity: `trial:${trialId}`,
       summary: `Reshaped layout to ${cols} column(s) x ${plotRows} row(s) — ${plots.length} plots`,

@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 import { canSwapTreatments } from '@shared/design'
 import type { DesignType } from '@shared/types'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,10 +40,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   await db.update(plot).set({ treatmentId: a.treatmentId }).where(eq(plot.id, b.id))
 
   try {
+    const actor = await getActor()
     await db.insert(auditLog).values({
       trialId,
       role: 'trial',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'plot.swap',
       entity: `trial:${trialId}`,
       summary: `Swapped treatments between plot #${a.plotNumber} and plot #${b.plotNumber}`,

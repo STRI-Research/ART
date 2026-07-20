@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
 import { measurementHeader, auditLog } from '@/lib/db/schema'
 import { eq, asc } from 'drizzle-orm'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,11 +52,12 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     .returning()
 
   try {
+    const actor = await getActor()
     const label = created.description || created.measurementType || `measurement ${created.ordinal}`
     await db.insert(auditLog).values({
       trialId,
       role: 'trial',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'measurement.header.add',
       entity: `measurement_header:${created.id}`,
       summary: `Added measurement column "${label}" (${created.measurementType || 'untyped'})`,

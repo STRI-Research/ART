@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db'
 import { trial, protocol, plot, measurementDef, measurementHeader, auditLog } from '@/lib/db/schema'
 import { eq, desc, asc, sql } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const actor = req.headers.get('x-vercel-user-email') ?? 'web'
+  const actor = await getActor()
   try {
     await db.insert(auditLog).values({
       trialId: row.id,

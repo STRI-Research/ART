@@ -5,6 +5,7 @@ import { eq, asc } from 'drizzle-orm'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 import { validateDesign, defaultCols } from '@shared/design'
 import type { DesignType } from '@shared/types'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -140,11 +141,12 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     .where(eq(trial.id, trialId))
 
   try {
+    const actor = await getActor()
     await db.insert(auditLog).values({
       trialId,
       protocolId: proto.id,
       role: 'trial',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'trial.generate',
       entity: `trial:${trialId}`,
       summary: `Generated ${design} layout — ${replicates} rep(s), ${newPlots.length} plots, seed ${seed}`,

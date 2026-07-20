@@ -4,6 +4,7 @@ import { measurementHeader, analysisResult, auditLog } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { runAnova } from '@/lib/stats/anova'
 import { AovRequest } from '@shared/types'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,13 +47,14 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   })
 
   try {
+    const actor = await getActor()
     const trtRow = result.anova.find((r) => r.source === 'treatment')
     const label = header.description || header.measurementType || `measurement ${header.ordinal + 1}`
     const outcome = result.note ? result.note : result.significant ? 'treatment effect significant' : 'not significant'
     await db.insert(auditLog).values({
       trialId,
       role: 'trial',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'measurement.stats.run',
       entity: `measurement_header:${headerId}`,
       summary: `Ran ${request.test} analysis (α=${request.alpha}) on "${label}" — ${outcome}`,

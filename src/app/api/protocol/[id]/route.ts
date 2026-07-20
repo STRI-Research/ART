@@ -10,6 +10,7 @@ import {
   auditLog,
 } from '@/lib/db/schema'
 import { eq, asc, sql } from 'drizzle-orm'
+import { getActor } from '@/lib/actor'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,12 +122,13 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     .returning()
 
   try {
+    const actor = await getActor()
     const fields = ['title','crop','targetPest','objective','investigator','season','notes','design','replicates','blockSize','plotWidth','plotLength']
     const changed = fields.filter((f) => body[f] !== undefined && body[f] !== (proto as Record<string, unknown>)[f])
     await db.insert(auditLog).values({
       protocolId: proto.id,
       role: 'protocol',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'protocol.edit',
       entity: `protocol:${proto.id}`,
       summary: `Edited protocol "${updated.title}" — changed ${changed.length ? changed.join(', ') : 'fields'}`,
@@ -150,10 +152,11 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   await db.delete(protocol).where(eq(protocol.id, proto.id))
 
   try {
+    const actor = await getActor()
     await db.insert(auditLog).values({
       protocolId: proto.id,
       role: 'protocol',
-      actor: req.headers.get('x-vercel-user-email') ?? 'web',
+      actor,
       action: 'protocol.delete',
       entity: `protocol:${proto.id}`,
       summary: `Deleted protocol "${proto.title}" (UID ${proto.protocolUid})`,

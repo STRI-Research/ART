@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { auth, signOut } from '@/auth'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -16,11 +17,13 @@ if(location.search.indexOf('x-vercel-protection-bypass')!==-1){
 }
 `
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await auth()
+
   return (
     <html lang="en">
       <head>
@@ -38,6 +41,21 @@ export default function RootLayout({
               <a href="/library">Library</a>
             </nav>
             <div className="spacer" />
+            {session?.user && (
+              <div className="user-info">
+                <span className="user-name">{session.user.name ?? session.user.email}</span>
+                <form
+                  action={async () => {
+                    'use server'
+                    await signOut({ redirectTo: '/sign-in' })
+                  }}
+                >
+                  <button type="submit" className="sign-out-btn">
+                    Sign out
+                  </button>
+                </form>
+              </div>
+            )}
           </header>
           <main className="app-main">{children}</main>
         </div>
