@@ -30,18 +30,18 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: bypassStripper }} />
       </head>
       <body>
-        <div className="app-shell">
-          <header className="app-header">
-            <a href="/" style={{ textDecoration: 'none' }}>
-              <h1>ART</h1>
-            </a>
-            <nav className="app-nav">
-              <a href="/protocol">Protocols</a>
-              <a href="/trial">Trials</a>
-              <a href="/library">Library</a>
-            </nav>
-            <div className="spacer" />
-            {session?.user && (
+        {session?.user ? (
+          <div className="app-shell">
+            <header className="app-header">
+              <a href="/" style={{ textDecoration: 'none' }}>
+                <h1>ART</h1>
+              </a>
+              <nav className="app-nav">
+                <a href="/protocol">Protocols</a>
+                <a href="/trial">Trials</a>
+                <a href="/library">Library</a>
+              </nav>
+              <div className="spacer" />
               <div className="user-info">
                 <span className="user-name">{session.user.name ?? session.user.email}</span>
                 <form
@@ -55,10 +55,12 @@ export default async function RootLayout({
                   </button>
                 </form>
               </div>
-            )}
-          </header>
-          <main className="app-main">{children}</main>
-        </div>
+            </header>
+            <main className="app-main">{children}</main>
+          </div>
+        ) : (
+          children
+        )}
       </body>
     </html>
   )
