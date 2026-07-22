@@ -128,6 +128,77 @@ export const Protocol = z.object({
 })
 export type Protocol = z.infer<typeof Protocol>
 
+// ---------------------------------------------------------------------------
+// Product catalogue + treatment components (structured programme model)
+// ---------------------------------------------------------------------------
+
+/** Rate units the calculation engine understands (per-hectare and per-m² forms). */
+export const RateUnit = z.enum(['L/ha', 'kg/ha', 'ml/m2', 'g/m2'])
+export type RateUnit = z.infer<typeof RateUnit>
+
+export const RATE_UNIT_LABELS: Record<RateUnit, string> = {
+  'L/ha': 'L/ha',
+  'kg/ha': 'kg/ha',
+  'ml/m2': 'ml/m²',
+  'g/m2': 'g/m²'
+}
+
+export const PhysicalForm = z.enum(['liquid', 'solid'])
+export type PhysicalForm = z.infer<typeof PhysicalForm>
+
+/**
+ * A controlled product record. Consumed by rate validation (min/max), the weigh-sheet
+ * calculation engine (physicalForm decides ml vs g), and printed application documents
+ * (name, STRI code, MAPP number).
+ */
+export const Product = z.object({
+  id: z.number().int().optional(),
+  name: z.string().min(1),
+  /** Internal STRI product code. */
+  code: z.string().default(''),
+  mappNumber: z.string().default(''),
+  formulationType: z.string().default(''),
+  physicalForm: PhysicalForm.default('liquid'),
+  defaultRateValue: z.number().nullable().default(null),
+  defaultRateUnit: RateUnit.default('L/ha'),
+  minRateValue: z.number().nullable().default(null),
+  maxRateValue: z.number().nullable().default(null),
+  defaultWaterVolLPerHa: z.number().nullable().default(null),
+  manufacturer: z.string().default(''),
+  active: z.boolean().default(true),
+  notes: z.string().default('')
+})
+export type Product = z.infer<typeof Product>
+
+/**
+ * One product line within a treatment programme: a catalogue product, a structured numeric
+ * rate, a water volume, and a typed scheduling rule (see `src/shared/schedule.ts`). Replaces
+ * the free-text `TreatmentApplication` lines for the application-planning workflow; legacy
+ * lines remain readable until a protocol is converted.
+ */
+export const TreatmentComponent = z.object({
+  id: z.number().int().optional(),
+  treatmentId: z.number().int().optional(),
+  productId: z.number().int(),
+  ordinal: z.number().int().default(0),
+  rateValue: z.number().nullable().default(null),
+  rateUnit: RateUnit.default('L/ha'),
+  /** Required when rateValue is outside the product's configured min/max range. */
+  rateOutOfRangeReason: z.string().default(''),
+  waterVolumeLPerHa: z.number().nullable().default(null),
+  waterIn: z.boolean().default(false),
+  inTankMix: z.boolean().default(true),
+  /** Typed ScheduleRule (validated separately against the schedule union). */
+  scheduleRule: z.unknown().default({ type: 'once' }),
+  activeFrom: z.string().default(''),
+  activeUntil: z.string().default(''),
+  maxOccurrences: z.number().int().nullable().default(null),
+  fromOccurrence: z.number().int().nullable().default(null),
+  groupName: z.string().default(''),
+  notes: z.string().default('')
+})
+export type TreatmentComponent = z.infer<typeof TreatmentComponent>
+
 /**
  * One line of a treatment's program: a product applied at a given rate at a given application timing.
  * `applicationRef` is an application timing code (A/B/C matching an `Application`), or '' for an
@@ -155,7 +226,13 @@ export const Treatment = z.object({
   type: z.string().default(''),
   /** Marks the untreated check used by calculated measurements' `control()` / % control. */
   isCheck: z.boolean().default(false),
-  applications: z.array(TreatmentApplication).default([])
+  notes: z.string().default(''),
+  /** Optimistic-concurrency version (server-incremented on each update). */
+  version: z.number().int().default(1),
+  /** Legacy free-text program lines (read-only once a protocol uses components). */
+  applications: z.array(TreatmentApplication).default([]),
+  /** Structured programme components (product + numeric rate + schedule rule). */
+  components: z.array(TreatmentComponent).default([])
 })
 export type Treatment = z.infer<typeof Treatment>
 

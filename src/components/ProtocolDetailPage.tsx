@@ -172,7 +172,10 @@ export function ProtocolDetailPage({ id }: { id: number }) {
         name: number === 1 ? 'Untreated Check' : '',
         type: '',
         isCheck: number === 1,
+        notes: '',
+        version: 1,
         applications: [],
+        components: [],
       },
     ])
   }
