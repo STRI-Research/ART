@@ -3,8 +3,6 @@ import type { getDb } from '@/lib/db'
 import {
   trial,
   protocol,
-  treatment,
-  treatmentApplication,
   application,
   measurementDef,
   plot,
@@ -13,6 +11,7 @@ import {
   applicationActual,
   property,
 } from '@/lib/db/schema'
+import { loadTreatments } from '@/lib/treatments'
 
 type Db = ReturnType<typeof getDb>
 
@@ -26,27 +25,7 @@ export async function getTrialSnapshot(db: Db, trialId: number) {
   const [proto] = await db.select().from(protocol).where(eq(protocol.id, tr.protocolId))
   if (!proto) return null
 
-  const treatments = await db
-    .select()
-    .from(treatment)
-    .where(eq(treatment.protocolId, proto.id))
-    .orderBy(asc(treatment.number))
-
-  const trtIds = treatments.map((t) => t.id)
-  const allTrtApps =
-    trtIds.length > 0
-      ? await db
-          .select()
-          .from(treatmentApplication)
-          .where(inArray(treatmentApplication.treatmentId, trtIds))
-          .orderBy(asc(treatmentApplication.treatmentId), asc(treatmentApplication.ordinal))
-      : []
-  const trtAppsByTrt = new Map<number, (typeof allTrtApps)[number][]>()
-  for (const ta of allTrtApps) {
-    const arr = trtAppsByTrt.get(ta.treatmentId) ?? []
-    arr.push(ta)
-    trtAppsByTrt.set(ta.treatmentId, arr)
-  }
+  const treatments = await loadTreatments(db, proto.id)
 
   const applications = await db
     .select()
@@ -94,10 +73,7 @@ export async function getTrialSnapshot(db: Db, trialId: number) {
   return {
     trial: tr,
     protocol: proto,
-    treatments: treatments.map((t) => ({
-      ...t,
-      applications: trtAppsByTrt.get(t.id) ?? [],
-    })),
+    treatments,
     applications,
     measurementDefs,
     plots,

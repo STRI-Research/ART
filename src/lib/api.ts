@@ -1,6 +1,8 @@
 import type {
   Protocol,
   Treatment,
+  TreatmentComponent,
+  Product,
   Application,
   MeasurementDef,
   MeasurementHeader,
@@ -101,6 +103,53 @@ export const api = {
       }),
     delete: (id: number) =>
       json<{ ok: boolean }>(`/api/protocol/${id}`, { method: 'DELETE' }),
+  },
+
+  // Stable-ID treatment/component operations (replace the array-replace save path).
+  treatments: {
+    create: (protocolId: number, t?: Partial<Treatment>) =>
+      json<Treatment>(`/api/protocol/${protocolId}/treatments`, {
+        method: 'POST',
+        body: JSON.stringify(t ?? {}),
+      }),
+    update: (
+      id: number,
+      patch: Partial<Pick<Treatment, 'name' | 'notes' | 'type' | 'number' | 'isCheck'>> & {
+        expectedVersion?: number
+      }
+    ) =>
+      json<Treatment>(`/api/treatment/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    delete: (id: number) =>
+      json<{ ok: boolean }>(`/api/treatment/${id}`, { method: 'DELETE' }),
+  },
+
+  components: {
+    add: (treatmentId: number, c: Partial<TreatmentComponent>) =>
+      json<TreatmentComponent>(`/api/treatment/${treatmentId}/components`, {
+        method: 'POST',
+        body: JSON.stringify(c),
+      }),
+    update: (id: number, patch: Partial<TreatmentComponent>) =>
+      json<TreatmentComponent>(`/api/component/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    remove: (id: number) =>
+      json<{ ok: boolean }>(`/api/component/${id}`, { method: 'DELETE' }),
+  },
+
+  products: {
+    list: (activeOnly = false) =>
+      json<Product[]>(`/api/product${activeOnly ? '?active=1' : ''}`),
+    create: (p: Partial<Product> & { name: string }) =>
+      json<Product>('/api/product', { method: 'POST', body: JSON.stringify(p) }),
+    update: (id: number, p: Partial<Product>) =>
+      json<Product>(`/api/product/${id}`, { method: 'PUT', body: JSON.stringify(p) }),
+    remove: (id: number) =>
+      json<{ ok: boolean; deactivated: boolean }>(`/api/product/${id}`, { method: 'DELETE' }),
   },
 
   trials: {
