@@ -426,22 +426,18 @@ org-wide ownership model.
 
 ---
 
-## D. Open questions (genuinely blocking)
+## D. Open questions — RESOLVED (2026-07-22)
 
-1. **Production data & migration baseline.** There is no `drizzle/` migrations folder — is the
-   Neon database currently managed purely by `drizzle-kit push`, and does it hold real
-   production protocols/trials that must survive in place? This determines whether the baseline
-   migration can be generated fresh or must be introspected from the live DB.
-2. **Role source.** Should `research_manager`/`admin` roles come from Entra (app roles/groups in
-   the token) or from an in-app admin-managed table? Proposed default: in-app `app_user.roles`
-   (simplest, no tenant-admin dependency), with the Entra `oid` stored so a later switch to
-   directory roles is clean. Confirm.
-3. **Approved-document immutability.** Is an immutable **data snapshot + exact re-render**
-   acceptable as the controlled version (with the signed uploaded scan as the physical
-   artifact), or is a stored generated PDF required for compliance? Server-side PDF on Vercel
-   is possible (headless Chromium) but adds real weight; recommendation is snapshot + re-render.
-4. **Blob provider.** Vercel Blob is the natural fit for the deployment; confirm it's
-   acceptable for signed application evidence (retention/limits), or name the preferred store.
-5. **Overage scope.** Confirm overage scales **both water and all product quantities**
-   proportionally (spray-to-waste style), as assumed in B7 — the brief says "apply consistently
-   based on the agreed operating method" without stating the method.
+1. **Production data & migration baseline.** → **No real data yet.** The DB is dev/test only;
+   the baseline migration is generated fresh, and existing dev databases can be reset or
+   brought level with `db:push`.
+2. **Role source.** → **Entra app roles/groups.** Roles arrive in the token's `roles` claim
+   (app roles defined on the Entra app registration: `preparer`, `research_manager`, `admin`).
+   ART surfaces them on the session and enforces them server-side; the `app_user` table stores
+   identity (email/name/oid) for FKs, notifications and audit — not roles.
+3. **Approved-document immutability.** → **Snapshot + exact re-render** (`snapshotJson` +
+   `inputHash`); the signed uploaded scan is the archival artifact. No server-side PDF.
+4. **Blob provider.** → **Vercel Blob** (default proposal accepted implicitly; revisit before
+   Phase 6 if needed).
+5. **Overage scope.** → **Water and all product quantities scale proportionally** by the
+   overage percentage (concentration unchanged, spray-to-waste style).
