@@ -13,6 +13,15 @@ interface AwaitingDoc {
   plannedDate: string
 }
 
+interface OutstandingItem {
+  eventId: number
+  trialId: number
+  label: string
+  actualDate: string
+  siteName: string
+  daysOutstanding: number | null
+}
+
 const NOTIFICATION_TEXT: Record<string, (p: Record<string, unknown>) => string> = {
   approval_requested: (p) => `${p.from} submitted ${p.documentRef} (application ${p.eventLabel}, planned ${p.plannedDate}) for your approval`,
   approval_granted: (p) => `${p.by} approved ${p.documentRef}`,
@@ -24,15 +33,18 @@ const NOTIFICATION_TEXT: Record<string, (p: Record<string, unknown>) => string> 
 /** Approvals awaiting the signed-in user, plus their in-app notifications. */
 export function AppRovalsPage() {
   const [docs, setDocs] = useState<AwaitingDoc[]>([])
+  const [outstanding, setOutstanding] = useState<OutstandingItem[]>([])
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
       fetch('/api/approvals').then((r) => r.json()),
+      fetch('/api/outstanding').then((r) => r.json()),
       api.notifications.list(),
-    ]).then(([d, n]) => {
+    ]).then(([d, o, n]) => {
       setDocs(d)
+      setOutstanding(o)
       setNotifications(n)
       setLoading(false)
     })
@@ -90,6 +102,27 @@ export function AppRovalsPage() {
           Open the trial&apos;s Schedule view and select the application event to review the exact
           version, calculations and warnings before approving.
         </p>
+      </div>
+
+      <div className="card">
+        <h2>Outstanding actions</h2>
+        {outstanding.length === 0 ? (
+          <p className="muted">No outstanding actions.</p>
+        ) : (
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {outstanding.map((o) => (
+              <li key={o.eventId} style={{ padding: '6px 0', fontSize: 13, color: '#9a6700' }}>
+                ⚠ Application {o.label}
+                {o.siteName ? ` (${o.siteName})` : ''} completed{' '}
+                {o.daysOutstanding != null
+                  ? `${o.daysOutstanding} day${o.daysOutstanding === 1 ? '' : 's'} ago`
+                  : ''}{' '}
+                — signed application document missing.{' '}
+                <a href={`/trial/${o.trialId}`}>Open trial</a>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="card">

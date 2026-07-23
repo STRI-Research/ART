@@ -353,6 +353,33 @@ export const applicationDocument = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// Uploaded signed evidence (blob references) for completed applications
+// ---------------------------------------------------------------------------
+export const evidenceFile = pgTable(
+  'evidence_file',
+  {
+    id: serial('id').primaryKey(),
+    eventId: integer('event_id')
+      .notNull()
+      .references(() => applicationEvent.id, { onDelete: 'cascade' }),
+    documentId: integer('document_id').references(() => applicationDocument.id, {
+      onDelete: 'set null',
+    }),
+    blobKey: text('blob_key').notNull().default(''),
+    blobUrl: text('blob_url').notNull().default(''),
+    fileName: text('file_name').notNull().default(''),
+    mimeType: text('mime_type').notNull().default(''),
+    sizeBytes: integer('size_bytes').notNull().default(0),
+    evidenceType: text('evidence_type').notNull().default('signed_application'),
+    uploadedById: integer('uploaded_by_id').references(() => appUser.id, { onDelete: 'set null' }),
+    uploadedAt: timestamp('uploaded_at').defaultNow(),
+    /** Set on the OLD file when a replacement is uploaded (history preserved). */
+    replacedById: integer('replaced_by_id'),
+  },
+  (t) => [index('idx_evidence_event').on(t.eventId)]
+)
+
+// ---------------------------------------------------------------------------
 // Application actuals (trial-side)
 // ---------------------------------------------------------------------------
 export const applicationActual = pgTable(

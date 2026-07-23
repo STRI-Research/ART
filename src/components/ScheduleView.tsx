@@ -492,6 +492,10 @@ function EventPanel({
         <ApprovalPanel trialId={trialId} event={ev} onError={onError} />
       </div>
 
+      {ev.executionStatus !== 'pending' && (
+        <CompletedEventSection trialId={trialId} event={ev} run={run} />
+      )}
+
       {pending && (
         <>
           <div className="row" style={{ alignItems: 'flex-end', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
@@ -609,6 +613,159 @@ function EventPanel({
             </button>
           </div>
         </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Post-completion controls (brief §§22–23): evidence status with days-outstanding warning,
+ * inline signed-document upload, and protected amendment of actual details (reason required;
+ * previous values are preserved in the audit log).
+ */
+function CompletedEventSection({
+  trialId,
+  event: ev,
+  run,
+}: {
+  trialId: number
+  event: ApplicationEvent
+  run: (p: Promise<TrialSnapshot>) => void
+}) {
+  const [showAmend, setShowAmend] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadMsg, setUploadMsg] = useState('')
+  const [amend, setAmend] = useState({
+    actualDate: ev.actualDate,
+    actualStartTime: ev.actualStartTime,
+    actualEndTime: ev.actualEndTime,
+    operator: ev.operator,
+    sprayer: ev.sprayer,
+    completionNotes: ev.completionNotes,
+    reason: '',
+  })
+  const fileInput = { current: null as HTMLInputElement | null }
+
+  const daysOutstanding = ev.actualDate ? daysBetween(ev.actualDate, new Date().toISOString().slice(0, 10)) : null
+
+  const upload = (file: File): void => {
+    setUploading(true)
+    setUploadMsg('')
+    const form = new FormData()
+    form.append('file', file)
+    fetch(`/api/trial/${trialId}/event/${ev.id}/evidence`, { method: 'POST', body: form })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(await r.text())
+        setUploadMsg('Signed document uploaded.')
+        run(api.trials.get(trialId))
+      })
+      .catch((e: Error) => {
+        try {
+          setUploadMsg(`⚠ ${JSON.parse(e.message).error ?? e.message}`)
+        } catch {
+          setUploadMsg(`⚠ ${e.message}`)
+        }
+      })
+      .finally(() => setUploading(false))
+  }
+
+  return (
+    <div style={{ marginTop: 16, borderTop: '1px solid var(--border, #ddd)', paddingTop: 12 }}>
+      <h3 style={{ margin: '0 0 8px', fontSize: 14 }}>Completion & evidence</h3>
+      {ev.evidenceStatus === 'outstanding' ? (
+        <p style={{ fontSize: 13, color: '#9a6700', margin: '0 0 8px' }}>
+          ⚠ Application {ev.label} completed
+          {daysOutstanding != null && daysOutstanding > 0
+            ? ` ${daysOutstanding} day${daysOutstanding === 1 ? '' : 's'} ago`
+            : ''}{' '}
+          — signed application document missing. The record is not fully complete until it is
+          uploaded.
+        </p>
+      ) : ev.evidenceStatus === 'uploaded' ? (
+        <p style={{ fontSize: 13, color: '#2e7d32', margin: '0 0 8px' }}>
+          ✓ Signed application document uploaded — record complete.
+        </p>
+      ) : null}
+      <div className="row" style={{ gap: 8 }}>
+        <input
+          ref={(el) => {
+            fileInput.current = el
+          }}
+          type="file"
+          accept="image/*,application/pdf"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) upload(f)
+            e.target.value = ''
+          }}
+        />
+        <button disabled={uploading} onClick={() => fileInput.current?.click()}>
+          {uploading
+            ? 'Uploading…'
+            : ev.evidenceStatus === 'uploaded'
+              ? 'Replace signed document'
+              : 'Upload signed document'}
+        </button>
+        <button onClick={() => setShowAmend(!showAmend)}>
+          {showAmend ? '▾ Hide amendment form' : '▸ Amend actual details'}
+        </button>
+      </div>
+      {uploadMsg && <p style={{ fontSize: 12, marginTop: 6 }}>{uploadMsg}</p>}
+
+      {showAmend && (
+        <div className="row" style={{ gap: 12, alignItems: 'flex-end', marginTop: 10, flexWrap: 'wrap' }}>
+          <div style={{ width: 150 }}>
+            <label>Actual date</label>
+            <input
+              type="date"
+              value={amend.actualDate}
+              onChange={(e) => setAmend({ ...amend, actualDate: e.target.value })}
+            />
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Start time</label>
+            <input
+              type="time"
+              value={amend.actualStartTime}
+              onChange={(e) => setAmend({ ...amend, actualStartTime: e.target.value })}
+            />
+          </div>
+          <div style={{ width: 110 }}>
+            <label>Finish time</label>
+            <input
+              type="time"
+              value={amend.actualEndTime}
+              onChange={(e) => setAmend({ ...amend, actualEndTime: e.target.value })}
+            />
+          </div>
+          <div style={{ width: 150 }}>
+            <label>Operator</label>
+            <input value={amend.operator} onChange={(e) => setAmend({ ...amend, operator: e.target.value })} />
+          </div>
+          <div style={{ width: 150 }}>
+            <label>Sprayer</label>
+            <input value={amend.sprayer} onChange={(e) => setAmend({ ...amend, sprayer: e.target.value })} />
+          </div>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <label>Notes</label>
+            <input
+              value={amend.completionNotes}
+              onChange={(e) => setAmend({ ...amend, completionNotes: e.target.value })}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <label>Amendment reason (required)</label>
+            <input value={amend.reason} onChange={(e) => setAmend({ ...amend, reason: e.target.value })} />
+          </div>
+          <button
+            className="primary"
+            disabled={!amend.reason.trim()}
+            onClick={() => run(api.trials.amendActuals(trialId, ev.id!, amend))}
+          >
+            Save amendment
+          </button>
+        </div>
       )}
     </div>
   )

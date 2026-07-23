@@ -307,6 +307,29 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ date, componentId }),
       }),
+    amendActuals: (
+      id: number,
+      eventId: number,
+      patch: {
+        actualDate?: string
+        actualStartTime?: string
+        actualEndTime?: string
+        operator?: string
+        sprayer?: string
+        completionNotes?: string
+        reason: string
+        occurrenceActuals?: {
+          id: number
+          actualRateValue: number | null
+          actualRateUnit?: string
+          deviationReason?: string
+        }[]
+      }
+    ) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/actuals`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
     saveMixSettings: (
       id: number,
       eventId: number,
