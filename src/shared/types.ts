@@ -252,6 +252,61 @@ export const Application = z.object({
 })
 export type Application = z.infer<typeof Application>
 
+// ---------------------------------------------------------------------------
+// Application events (trial-side application plan)
+// ---------------------------------------------------------------------------
+export const EventPlanningStatus = z.enum(['planned', 'cancelled'])
+export type EventPlanningStatus = z.infer<typeof EventPlanningStatus>
+export const EventExecutionStatus = z.enum(['pending', 'completed', 'amended'])
+export type EventExecutionStatus = z.infer<typeof EventExecutionStatus>
+export const EventEvidenceStatus = z.enum(['not_required', 'outstanding', 'uploaded'])
+export type EventEvidenceStatus = z.infer<typeof EventEvidenceStatus>
+
+/**
+ * One distinct planned/actual spraying date in a trial, labelled A, B, C… Completed events are
+ * historical evidence: regeneration and rebasing never modify them.
+ */
+export const ApplicationEvent = z.object({
+  id: z.number().int().optional(),
+  trialId: z.number().int(),
+  sequence: z.number().int(),
+  label: z.string(),
+  plannedDate: z.string().default(''),
+  actualDate: z.string().default(''),
+  actualStartTime: z.string().default(''),
+  actualEndTime: z.string().default(''),
+  planningStatus: EventPlanningStatus.default('planned'),
+  executionStatus: EventExecutionStatus.default('pending'),
+  evidenceStatus: EventEvidenceStatus.default('not_required'),
+  decisionRequired: z.boolean().default(false),
+  createdFrom: z.string().default('generated'),
+  rescheduleReason: z.string().default(''),
+  operator: z.string().default(''),
+  sprayer: z.string().default(''),
+  completionNotes: z.string().default(''),
+  amendReason: z.string().default(''),
+  version: z.number().int().default(1)
+})
+export type ApplicationEvent = z.infer<typeof ApplicationEvent>
+
+/** One component occurrence inside an application event. */
+export const EventOccurrence = z.object({
+  id: z.number().int().optional(),
+  eventId: z.number().int(),
+  componentId: z.number().int(),
+  treatmentId: z.number().int(),
+  plannedRateValue: z.number().nullable().default(null),
+  plannedRateUnit: z.string().default(''),
+  plannedOverrideReason: z.string().default(''),
+  actualRateValue: z.number().nullable().default(null),
+  actualRateUnit: z.string().default(''),
+  deviationReason: z.string().default(''),
+  status: z.enum(['planned', 'cancelled', 'applied']).default('planned'),
+  subMixIndex: z.number().int().default(0),
+  origin: z.enum(['rule', 'manual']).default('rule')
+})
+export type EventOccurrence = z.infer<typeof EventOccurrence>
+
 /** Trial-side record of when an application actually happened (keyed by the plan's timing code). */
 export const ApplicationActual = z.object({
   id: z.number().int().optional(),
@@ -291,7 +346,12 @@ export const SiteMetadata = z.object({
   state: z.string().default(''),
   country: z.string().default(''),
   plantingDate: z.string().default(''),
-  trialNotes: z.string().default('')
+  trialNotes: z.string().default(''),
+  /** Application-planning window (ISO dates; '' = not set). */
+  startDate: z.string().default(''),
+  endDate: z.string().default(''),
+  /** Client-funded application-event count (null = unconstrained). */
+  fundedApplicationCount: z.number().int().nullable().default(null)
 })
 export type SiteMetadata = z.infer<typeof SiteMetadata>
 

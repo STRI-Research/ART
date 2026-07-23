@@ -34,13 +34,17 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
       country: body.country ?? tr.country,
       plantingDate: body.plantingDate ?? tr.plantingDate,
       trialNotes: body.trialNotes ?? tr.trialNotes,
+      startDate: body.startDate ?? tr.startDate,
+      endDate: body.endDate ?? tr.endDate,
+      fundedApplicationCount:
+        body.fundedApplicationCount !== undefined ? body.fundedApplicationCount : tr.fundedApplicationCount,
       updatedAt: new Date(),
     })
     .where(eq(trial.id, trialId))
 
   try {
     const actor = await getActor()
-    const fields = ['siteName','operator','location','city','state','country','plantingDate','trialNotes']
+    const fields = ['siteName','operator','location','city','state','country','plantingDate','trialNotes','startDate','endDate','fundedApplicationCount']
     const changed = fields.filter((f) => body[f] !== undefined && body[f] !== (tr as Record<string, unknown>)[f])
     await db.insert(auditLog).values({
       trialId,

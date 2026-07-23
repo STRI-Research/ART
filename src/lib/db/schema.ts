@@ -195,9 +195,94 @@ export const trial = pgTable('trial', {
   plantingDate: text('planting_date').notNull().default(''),
   trialNotes: text('trial_notes').notNull().default(''),
   layoutLockedAt: text('layout_locked_at').notNull().default(''),
+  /** Application-planning window (ISO dates; '' = not set). */
+  startDate: text('start_date').notNull().default(''),
+  endDate: text('end_date').notNull().default(''),
+  /** Client-funded application-event count (null = no funding constraint). */
+  fundedApplicationCount: integer('funded_application_count'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })
+
+// ---------------------------------------------------------------------------
+// Application events (trial-side plan): one row per distinct planned/actual
+// spraying date, labelled A, B, C… Completed events are historical evidence —
+// schedule regeneration and rebasing never touch them.
+// ---------------------------------------------------------------------------
+export const applicationEvent = pgTable(
+  'application_event',
+  {
+    id: serial('id').primaryKey(),
+    trialId: integer('trial_id')
+      .notNull()
+      .references(() => trial.id, { onDelete: 'cascade' }),
+    /** Monotonic creation counter (unique per trial); display order is by date. */
+    sequence: integer('sequence').notNull(),
+    /** A…Z then AA, AB…; frozen once the event is completed. */
+    label: text('label').notNull().default(''),
+    plannedDate: text('planned_date').notNull().default(''),
+    actualDate: text('actual_date').notNull().default(''),
+    actualStartTime: text('actual_start_time').notNull().default(''),
+    actualEndTime: text('actual_end_time').notNull().default(''),
+    /** planned | cancelled */
+    planningStatus: text('planning_status').notNull().default('planned'),
+    /** pending | completed | amended */
+    executionStatus: text('execution_status').notNull().default('pending'),
+    /** not_required | outstanding | uploaded */
+    evidenceStatus: text('evidence_status').notNull().default('not_required'),
+    /** Model-driven rules (GDD etc.) generate decision-required occurrences. */
+    decisionRequired: boolean('decision_required').notNull().default(false),
+    /** generated | manual | merge | split | migrated */
+    createdFrom: text('created_from').notNull().default('generated'),
+    rescheduleReason: text('reschedule_reason').notNull().default(''),
+    operator: text('operator').notNull().default(''),
+    sprayer: text('sprayer').notNull().default(''),
+    forecastSnapshot: jsonb('forecast_snapshot'),
+    actualWeather: jsonb('actual_weather'),
+    preChecks: jsonb('pre_checks'),
+    completionNotes: text('completion_notes').notNull().default(''),
+    amendReason: text('amend_reason').notNull().default(''),
+    /** Optimistic-concurrency version. */
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('appevent_trial_seq').on(t.trialId, t.sequence),
+    index('idx_appevent_trial').on(t.trialId),
+  ]
+)
+
+/** One component occurrence inside an application event (which product lines are due). */
+export const eventOccurrence = pgTable(
+  'event_occurrence',
+  {
+    id: serial('id').primaryKey(),
+    eventId: integer('event_id')
+      .notNull()
+      .references(() => applicationEvent.id, { onDelete: 'cascade' }),
+    componentId: integer('component_id')
+      .notNull()
+      .references(() => treatmentComponent.id, { onDelete: 'restrict' }),
+    treatmentId: integer('treatment_id')
+      .notNull()
+      .references(() => treatment.id, { onDelete: 'restrict' }),
+    /** Planned-rate override for this occurrence only (null = component default). */
+    plannedRateValue: real('planned_rate_value'),
+    plannedRateUnit: text('planned_rate_unit').notNull().default(''),
+    plannedOverrideReason: text('planned_override_reason').notNull().default(''),
+    actualRateValue: real('actual_rate_value'),
+    actualRateUnit: text('actual_rate_unit').notNull().default(''),
+    deviationReason: text('deviation_reason').notNull().default(''),
+    /** planned | cancelled | applied */
+    status: text('status').notNull().default('planned'),
+    /** Same-date but must-spray-separately sub-mix grouping (0 = main mix). */
+    subMixIndex: integer('sub_mix_index').notNull().default(0),
+    /** rule | manual */
+    origin: text('origin').notNull().default('rule'),
+  },
+  (t) => [index('idx_occurrence_event').on(t.eventId)]
+)
 
 // ---------------------------------------------------------------------------
 // Application actuals (trial-side)

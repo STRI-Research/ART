@@ -12,6 +12,7 @@ import {
   property,
 } from '@/lib/db/schema'
 import { loadTreatments } from '@/lib/treatments'
+import { loadPlan } from '@/lib/planStore'
 
 type Db = ReturnType<typeof getDb>
 
@@ -70,6 +71,24 @@ export async function getTrialSnapshot(db: Db, trialId: number) {
     .from(property)
     .where(eq(property.trialId, tr.id))
 
+  const { events: applicationEvents, occurrences: eventOccurrences } = await loadPlan(db, tr.id)
+
+  // DAT derivation reads applicationActuals (timingCode → actualDate). Completed application
+  // events feed the same mechanism by label, so "14 DA-A" resolves against event A's actual
+  // date without touching the timing module; explicit legacy actuals win on a code clash.
+  const actualByCode = new Map(applicationActuals.map((a) => [a.timingCode, a]))
+  const mergedActuals = [...applicationActuals]
+  for (const ev of applicationEvents) {
+    if (ev.executionStatus !== 'pending' && ev.actualDate && !actualByCode.has(ev.label)) {
+      mergedActuals.push({
+        id: -ev.id, // synthetic (not a DB row); consumers only read timingCode/actualDate
+        trialId: tr.id,
+        timingCode: ev.label,
+        actualDate: ev.actualDate,
+      })
+    }
+  }
+
   return {
     trial: tr,
     protocol: proto,
@@ -79,7 +98,9 @@ export async function getTrialSnapshot(db: Db, trialId: number) {
     plots,
     measurementHeaders,
     measurementValues,
-    applicationActuals,
+    applicationActuals: mergedActuals,
     properties,
+    applicationEvents,
+    eventOccurrences,
   }
 }

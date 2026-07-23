@@ -5,7 +5,9 @@ import { api, type TrialSnapshot } from '@/lib/api'
 import { PropertyList } from '@/components/PropertyList'
 import type { SiteMetadata } from '@shared/types'
 
-const FIELDS: { key: keyof SiteMetadata; label: string; width?: number }[] = [
+type TextField = Exclude<keyof SiteMetadata, 'fundedApplicationCount'>
+
+const FIELDS: { key: TextField; label: string; width?: number }[] = [
   { key: 'siteName', label: 'Site name' },
   { key: 'operator', label: 'Operator / investigator' },
   { key: 'location', label: 'Location / field' },
@@ -37,6 +39,9 @@ export function SiteView({
     country: trial.country ?? '',
     plantingDate: trial.plantingDate ?? '',
     trialNotes: trial.trialNotes ?? '',
+    startDate: trial.startDate ?? '',
+    endDate: trial.endDate ?? '',
+    fundedApplicationCount: trial.fundedApplicationCount ?? null,
   })
 
   // Persist on blur so a field commits when the user moves on (no explicit Save needed).

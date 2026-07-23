@@ -4,6 +4,8 @@ import type {
   TreatmentComponent,
   Product,
   Application,
+  ApplicationEvent,
+  EventOccurrence,
   MeasurementDef,
   MeasurementHeader,
   MeasurementValue,
@@ -73,6 +75,15 @@ export interface TrialSnapshot {
   measurementValues: MeasurementValue[]
   applicationActuals: ApplicationActual[]
   properties: Property[]
+  applicationEvents: ApplicationEvent[]
+  eventOccurrences: EventOccurrence[]
+}
+
+export interface PlanConflictInfo {
+  ruleEventCount: number
+  fundedCount: number
+  difference: number
+  suggestedIntervalDays: number | null
 }
 
 export const api = {
@@ -211,6 +222,73 @@ export const api = {
       json<TrialSnapshot>(`/api/trial/${id}/properties`, {
         method: 'PUT',
         body: JSON.stringify({ scope, scopeRef, props }),
+      }),
+    generatePlan: (id: number) =>
+      json<{ snapshot: TrialSnapshot; conflict: PlanConflictInfo | null }>(
+        `/api/trial/${id}/plan/generate`,
+        { method: 'POST' }
+      ),
+    updateEvent: (
+      id: number,
+      eventId: number,
+      patch: {
+        plannedDate?: string
+        scope?: 'event' | 'rebase'
+        cancel?: boolean
+        reason?: string
+        expectedVersion?: number
+      }
+    ) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    completeEvent: (
+      id: number,
+      eventId: number,
+      c: {
+        actualDate: string
+        actualStartTime?: string
+        actualEndTime?: string
+        operator?: string
+        sprayer?: string
+        completionNotes?: string
+      }
+    ) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/complete`, {
+        method: 'POST',
+        body: JSON.stringify(c),
+      }),
+    mergeEvent: (id: number, eventId: number, intoEventId: number, reason?: string) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/merge`, {
+        method: 'POST',
+        body: JSON.stringify({ intoEventId, reason }),
+      }),
+    splitEvent: (id: number, eventId: number, occurrenceIds: number[], newDate: string, reason?: string) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/split`, {
+        method: 'POST',
+        body: JSON.stringify({ occurrenceIds, newDate, reason }),
+      }),
+    addManualOccurrence: (id: number, date: string, componentId: number) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event`, {
+        method: 'POST',
+        body: JSON.stringify({ date, componentId }),
+      }),
+    updateOccurrence: (
+      occurrenceId: number,
+      patch: {
+        plannedRateValue?: number | null
+        plannedRateUnit?: string
+        plannedOverrideReason?: string
+        cancel?: boolean
+        date?: string
+        rebaseComponent?: boolean
+        reason?: string
+      }
+    ) =>
+      json<TrialSnapshot>(`/api/occurrence/${occurrenceId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
       }),
     delete: (id: number) =>
       json<{ ok: boolean }>(`/api/trial/${id}`, { method: 'DELETE' }),
