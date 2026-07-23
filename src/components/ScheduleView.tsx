@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, type TrialSnapshot, type PlanConflictInfo } from '@/lib/api'
 import { MixCalculations } from '@/components/MixCalculations'
+import { ApprovalPanel } from '@/components/ApprovalPanel'
 import { eventCountdown, daysBetween } from '@shared/plan'
 import { parseScheduleRule, ruleLabel } from '@shared/schedule'
 import type { ApplicationEvent, Product, TreatmentComponent } from '@shared/types'
@@ -479,6 +480,11 @@ function EventPanel({
             />
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: 16, borderTop: '1px solid var(--border, #ddd)', paddingTop: 12 }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 14 }}>Checking & approval</h3>
+        <ApprovalPanel trialId={trialId} event={ev} onError={onError} />
       </div>
 
       {pending && (

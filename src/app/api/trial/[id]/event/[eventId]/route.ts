@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { rebaseDelta, shiftDate } from '@shared/plan'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 import { logAudit } from '@/lib/audit'
+import { invalidateTrialApprovals } from '@/lib/documents'
 import { getSessionUser } from '@/lib/users'
 
 export const dynamic = 'force-dynamic'
@@ -71,6 +72,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       summary: `Cancelled application ${ev.label} (planned ${ev.plannedDate})`,
       reason,
     })
+    await invalidateTrialApprovals(db, trialId)
     return NextResponse.json(await getTrialSnapshot(db, trialId))
   }
 
@@ -130,5 +132,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     reason,
   })
 
+  await invalidateTrialApprovals(db, trialId)
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

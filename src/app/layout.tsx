@@ -40,6 +40,7 @@ export default async function RootLayout({
                 <a href="/protocol">Protocols</a>
                 <a href="/trial">Trials</a>
                 <a href="/products">Products</a>
+                <a href="/approvals">Approvals</a>
                 <a href="/library">Library</a>
               </nav>
               <div className="spacer" />

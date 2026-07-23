@@ -5,6 +5,7 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 import { logAudit } from '@/lib/audit'
+import { invalidateTrialApprovals } from '@/lib/documents'
 import { getSessionUser } from '@/lib/users'
 
 export const dynamic = 'force-dynamic'
@@ -88,5 +89,6 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     after: Object.fromEntries(changed.map((k) => [k, (p as Record<string, unknown>)[k]])),
   })
 
+  await invalidateTrialApprovals(db, trialId)
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

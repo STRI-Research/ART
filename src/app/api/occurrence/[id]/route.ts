@@ -7,6 +7,7 @@ import { rebaseDelta, shiftDate } from '@shared/plan'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 import { moveOccurrencesToDate } from '@/lib/planStore'
 import { logAudit } from '@/lib/audit'
+import { invalidateTrialApprovals } from '@/lib/documents'
 import { getSessionUser } from '@/lib/users'
 
 export const dynamic = 'force-dynamic'
@@ -81,6 +82,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       after: { plannedRateValue: p.plannedRateValue, cancel: p.cancel },
       reason: p.plannedOverrideReason || p.reason || undefined,
     })
+    await invalidateTrialApprovals(db, trialId)
     return NextResponse.json(await getTrialSnapshot(db, trialId))
   }
 
@@ -133,5 +135,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     reason: p.reason,
   })
 
+  await invalidateTrialApprovals(db, trialId)
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

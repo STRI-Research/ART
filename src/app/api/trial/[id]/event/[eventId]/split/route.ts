@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { getTrialSnapshot } from '@/lib/trialSnapshot'
 import { moveOccurrencesToDate } from '@/lib/planStore'
 import { logAudit } from '@/lib/audit'
+import { invalidateTrialApprovals } from '@/lib/documents'
 import { getSessionUser } from '@/lib/users'
 
 export const dynamic = 'force-dynamic'
@@ -69,5 +70,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     reason: body.data.reason,
   })
 
+  await invalidateTrialApprovals(db, trialId)
   return NextResponse.json(await getTrialSnapshot(db, trialId))
 }

@@ -88,6 +88,37 @@ export interface PlanConflictInfo {
   suggestedIntervalDays: number | null
 }
 
+/** An application-document version with approval state (see application_document). */
+export interface AppDocument {
+  id: number
+  eventId: number
+  versionNumber: number
+  status: 'draft' | 'awaiting_approval' | 'returned' | 'approved' | 'superseded'
+  snapshotJson: unknown
+  inputHash: string
+  documentRef: string
+  createdAt: string
+  firstCheckById: number | null
+  firstCheckAt: string | null
+  assignedApproverId: number | null
+  approvedById: number | null
+  approvedAt: string | null
+  returnReason: string
+  comments: string
+  printedAt: string | null
+  firstCheckerName: string
+  approverName: string
+  approvedByName: string
+}
+
+export interface AppNotification {
+  id: number
+  type: string
+  payloadJson: Record<string, unknown> | null
+  readAt: string | null
+  createdAt: string
+}
+
 export const api = {
   protocols: {
     list: () => json<ProtocolSummary[]>('/api/protocol'),
@@ -361,6 +392,48 @@ export const api = {
         `/api/trial/${trialId}/measurements/values`,
         { method: 'PUT', body: JSON.stringify(v) }
       ),
+  },
+
+  documents: {
+    /** Latest document version for an event (null when none). */
+    get: (trialId: number, eventId: number) =>
+      json<AppDocument | null>(`/api/trial/${trialId}/event/${eventId}/document`),
+    /** Complete the first check and submit to a Research Manager. */
+    submit: (trialId: number, eventId: number, approverId: number, comments?: string) =>
+      json<AppDocument>(`/api/trial/${trialId}/event/${eventId}/document`, {
+        method: 'POST',
+        body: JSON.stringify({ approverId, comments }),
+      }),
+    action: (
+      documentId: number,
+      action: 'approve' | 'return' | 'withdraw',
+      versionNumber: number,
+      opts?: { reason?: string; comments?: string }
+    ) =>
+      json<AppDocument>(`/api/document/${documentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action, versionNumber, ...opts }),
+      }),
+    recordPrint: (documentId: number) =>
+      json<{ ok: boolean; documentRef: string }>(`/api/document/${documentId}`, {
+        method: 'POST',
+      }),
+  },
+
+  users: {
+    list: () =>
+      json<{ me: { id: number; roles: string[] }; users: { id: number; name: string; email: string }[] }>(
+        '/api/users'
+      ),
+  },
+
+  notifications: {
+    list: () => json<AppNotification[]>('/api/notifications'),
+    markRead: (ids?: number[]) =>
+      json<{ ok: boolean }>('/api/notifications', {
+        method: 'POST',
+        body: JSON.stringify(ids ? { ids } : { all: true }),
+      }),
   },
 
   stats: {

@@ -313,6 +313,46 @@ export const treatmentMix = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// Application documents: immutable versioned weigh-sheet snapshots with the
+// two-person approval record. An approval applies only to the exact version
+// reviewed; material input changes supersede it.
+// ---------------------------------------------------------------------------
+export const applicationDocument = pgTable(
+  'application_document',
+  {
+    id: serial('id').primaryKey(),
+    eventId: integer('event_id')
+      .notNull()
+      .references(() => applicationEvent.id, { onDelete: 'cascade' }),
+    versionNumber: integer('version_number').notNull(),
+    /** draft | awaiting_approval | returned | approved | superseded */
+    status: text('status').notNull().default('draft'),
+    /** Complete immutable input + calculation snapshot (renders the pack exactly). */
+    snapshotJson: jsonb('snapshot_json').notNull(),
+    /** Hash of the material inputs — mismatch with live data invalidates approval. */
+    inputHash: text('input_hash').notNull().default(''),
+    /** Printed reference + QR target, e.g. "ART-12-C-v2". */
+    documentRef: text('document_ref').notNull().default(''),
+    createdById: integer('created_by_id').references(() => appUser.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').defaultNow(),
+    firstCheckById: integer('first_check_by_id').references(() => appUser.id, { onDelete: 'set null' }),
+    firstCheckAt: timestamp('first_check_at'),
+    assignedApproverId: integer('assigned_approver_id').references(() => appUser.id, { onDelete: 'set null' }),
+    approvedById: integer('approved_by_id').references(() => appUser.id, { onDelete: 'set null' }),
+    approvedAt: timestamp('approved_at'),
+    returnReason: text('return_reason').notNull().default(''),
+    comments: text('comments').notNull().default(''),
+    printedAt: timestamp('printed_at'),
+    supersededAt: timestamp('superseded_at'),
+  },
+  (t) => [
+    uniqueIndex('appdoc_event_version').on(t.eventId, t.versionNumber),
+    uniqueIndex('appdoc_ref').on(t.documentRef),
+    index('idx_appdoc_event').on(t.eventId),
+  ]
+)
+
+// ---------------------------------------------------------------------------
 // Application actuals (trial-side)
 // ---------------------------------------------------------------------------
 export const applicationActual = pgTable(
