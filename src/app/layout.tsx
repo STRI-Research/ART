@@ -9,23 +9,11 @@ export const metadata: Metadata = {
   description: 'Plan, randomize, collect, and analyze field trials. Open-source.'
 }
 
-const bypassStripper = `
-if(location.search.indexOf('x-vercel-protection-bypass')!==-1){
-  var u=new URL(location.href);
-  u.searchParams.delete('x-vercel-protection-bypass');
-  u.searchParams.delete('x-vercel-set-bypass-cookie');
-  history.replaceState({},'',u.toString());
-}
-`
-
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getUser()
 
   return (
     <html lang="en">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: bypassStripper }} />
-      </head>
       <body>
         {user ? (
           <div className="app-shell">
