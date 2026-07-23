@@ -1,16 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import {
-  protocol,
-  treatment,
-  treatmentApplication,
-  application,
-  measurementDef,
-  trial,
-  auditLog,
-} from '@/lib/db/schema'
+import { protocol, application, measurementDef, trial, auditLog } from '@/lib/db/schema'
 import { eq, asc, sql } from 'drizzle-orm'
 import { getActor } from '@/lib/actor'
+import { loadTreatments } from '@/lib/treatments'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,23 +23,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     .where(eq(protocol.id, Number(id)))
   if (!proto) return badRequest('Protocol not found')
 
-  const treatments = await db
-    .select()
-    .from(treatment)
-    .where(eq(treatment.protocolId, proto.id))
-    .orderBy(asc(treatment.number))
-
-  const trtIds = treatments.map((t) => t.id)
-  const allTrtApps =
-    trtIds.length > 0
-      ? await db
-          .select()
-          .from(treatmentApplication)
-          .orderBy(
-            asc(treatmentApplication.treatmentId),
-            asc(treatmentApplication.ordinal)
-          )
-      : []
+  const treatments = await loadTreatments(db, proto.id)
 
   const apps = await db
     .select()
@@ -60,19 +37,9 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     .where(eq(measurementDef.protocolId, proto.id))
     .orderBy(asc(measurementDef.ordinal))
 
-  const trtAppsByTrt = new Map<number, (typeof allTrtApps)[number][]>()
-  for (const ta of allTrtApps) {
-    const arr = trtAppsByTrt.get(ta.treatmentId) ?? []
-    arr.push(ta)
-    trtAppsByTrt.set(ta.treatmentId, arr)
-  }
-
   return NextResponse.json({
     protocol: proto,
-    treatments: treatments.map((t) => ({
-      ...t,
-      applications: trtAppsByTrt.get(t.id) ?? [],
-    })),
+    treatments,
     applications: apps,
     measurementDefs: defs,
   })

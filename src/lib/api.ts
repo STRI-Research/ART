@@ -1,7 +1,12 @@
 import type {
   Protocol,
   Treatment,
+  TreatmentComponent,
+  Product,
   Application,
+  ApplicationEvent,
+  EventOccurrence,
+  TreatmentMix,
   MeasurementDef,
   MeasurementHeader,
   MeasurementValue,
@@ -71,6 +76,47 @@ export interface TrialSnapshot {
   measurementValues: MeasurementValue[]
   applicationActuals: ApplicationActual[]
   properties: Property[]
+  applicationEvents: ApplicationEvent[]
+  eventOccurrences: EventOccurrence[]
+  treatmentMixes: TreatmentMix[]
+}
+
+export interface PlanConflictInfo {
+  ruleEventCount: number
+  fundedCount: number
+  difference: number
+  suggestedIntervalDays: number | null
+}
+
+/** An application-document version with approval state (see application_document). */
+export interface AppDocument {
+  id: number
+  eventId: number
+  versionNumber: number
+  status: 'draft' | 'awaiting_approval' | 'returned' | 'approved' | 'superseded'
+  snapshotJson: unknown
+  inputHash: string
+  documentRef: string
+  createdAt: string
+  firstCheckById: number | null
+  firstCheckAt: string | null
+  assignedApproverId: number | null
+  approvedById: number | null
+  approvedAt: string | null
+  returnReason: string
+  comments: string
+  printedAt: string | null
+  firstCheckerName: string
+  approverName: string
+  approvedByName: string
+}
+
+export interface AppNotification {
+  id: number
+  type: string
+  payloadJson: Record<string, unknown> | null
+  readAt: string | null
+  createdAt: string
 }
 
 export const api = {
@@ -101,6 +147,53 @@ export const api = {
       }),
     delete: (id: number) =>
       json<{ ok: boolean }>(`/api/protocol/${id}`, { method: 'DELETE' }),
+  },
+
+  // Stable-ID treatment/component operations (replace the array-replace save path).
+  treatments: {
+    create: (protocolId: number, t?: Partial<Treatment>) =>
+      json<Treatment>(`/api/protocol/${protocolId}/treatments`, {
+        method: 'POST',
+        body: JSON.stringify(t ?? {}),
+      }),
+    update: (
+      id: number,
+      patch: Partial<Pick<Treatment, 'name' | 'notes' | 'type' | 'number' | 'isCheck'>> & {
+        expectedVersion?: number
+      }
+    ) =>
+      json<Treatment>(`/api/treatment/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    delete: (id: number) =>
+      json<{ ok: boolean }>(`/api/treatment/${id}`, { method: 'DELETE' }),
+  },
+
+  components: {
+    add: (treatmentId: number, c: Partial<TreatmentComponent>) =>
+      json<TreatmentComponent>(`/api/treatment/${treatmentId}/components`, {
+        method: 'POST',
+        body: JSON.stringify(c),
+      }),
+    update: (id: number, patch: Partial<TreatmentComponent>) =>
+      json<TreatmentComponent>(`/api/component/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    remove: (id: number) =>
+      json<{ ok: boolean }>(`/api/component/${id}`, { method: 'DELETE' }),
+  },
+
+  products: {
+    list: (activeOnly = false) =>
+      json<Product[]>(`/api/product${activeOnly ? '?active=1' : ''}`),
+    create: (p: Partial<Product> & { name: string }) =>
+      json<Product>('/api/product', { method: 'POST', body: JSON.stringify(p) }),
+    update: (id: number, p: Partial<Product>) =>
+      json<Product>(`/api/product/${id}`, { method: 'PUT', body: JSON.stringify(p) }),
+    remove: (id: number) =>
+      json<{ ok: boolean; deactivated: boolean }>(`/api/product/${id}`, { method: 'DELETE' }),
   },
 
   trials: {
@@ -163,6 +256,117 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ scope, scopeRef, props }),
       }),
+    generatePlan: (id: number) =>
+      json<{ snapshot: TrialSnapshot; conflict: PlanConflictInfo | null }>(
+        `/api/trial/${id}/plan/generate`,
+        { method: 'POST' }
+      ),
+    updateEvent: (
+      id: number,
+      eventId: number,
+      patch: {
+        plannedDate?: string
+        scope?: 'event' | 'rebase'
+        cancel?: boolean
+        reason?: string
+        expectedVersion?: number
+      }
+    ) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    completeEvent: (
+      id: number,
+      eventId: number,
+      c: {
+        actualDate: string
+        actualStartTime?: string
+        actualEndTime?: string
+        operator?: string
+        sprayer?: string
+        completionNotes?: string
+      }
+    ) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/complete`, {
+        method: 'POST',
+        body: JSON.stringify(c),
+      }),
+    mergeEvent: (id: number, eventId: number, intoEventId: number, reason?: string) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/merge`, {
+        method: 'POST',
+        body: JSON.stringify({ intoEventId, reason }),
+      }),
+    splitEvent: (id: number, eventId: number, occurrenceIds: number[], newDate: string, reason?: string) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/split`, {
+        method: 'POST',
+        body: JSON.stringify({ occurrenceIds, newDate, reason }),
+      }),
+    addManualOccurrence: (id: number, date: string, componentId: number) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event`, {
+        method: 'POST',
+        body: JSON.stringify({ date, componentId }),
+      }),
+    amendActuals: (
+      id: number,
+      eventId: number,
+      patch: {
+        actualDate?: string
+        actualStartTime?: string
+        actualEndTime?: string
+        operator?: string
+        sprayer?: string
+        completionNotes?: string
+        reason: string
+        occurrenceActuals?: {
+          id: number
+          actualRateValue: number | null
+          actualRateUnit?: string
+          deviationReason?: string
+        }[]
+      }
+    ) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/actuals`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    saveMixSettings: (
+      id: number,
+      eventId: number,
+      treatmentId: number,
+      settings: Partial<
+        Pick<
+          TreatmentMix,
+          | 'waterVolumeLPerHa'
+          | 'overageEnabled'
+          | 'overagePct'
+          | 'waterIn'
+          | 'sprayer'
+          | 'tankMixStatus'
+          | 'tankMixNotes'
+        >
+      >
+    ) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/mix/${treatmentId}`, {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      }),
+    updateOccurrence: (
+      occurrenceId: number,
+      patch: {
+        plannedRateValue?: number | null
+        plannedRateUnit?: string
+        plannedOverrideReason?: string
+        cancel?: boolean
+        date?: string
+        rebaseComponent?: boolean
+        reason?: string
+      }
+    ) =>
+      json<TrialSnapshot>(`/api/occurrence/${occurrenceId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
     delete: (id: number) =>
       json<{ ok: boolean }>(`/api/trial/${id}`, { method: 'DELETE' }),
   },
@@ -211,6 +415,48 @@ export const api = {
         `/api/trial/${trialId}/measurements/values`,
         { method: 'PUT', body: JSON.stringify(v) }
       ),
+  },
+
+  documents: {
+    /** Latest document version for an event (null when none). */
+    get: (trialId: number, eventId: number) =>
+      json<AppDocument | null>(`/api/trial/${trialId}/event/${eventId}/document`),
+    /** Complete the first check and submit to a Research Manager. */
+    submit: (trialId: number, eventId: number, approverId: number, comments?: string) =>
+      json<AppDocument>(`/api/trial/${trialId}/event/${eventId}/document`, {
+        method: 'POST',
+        body: JSON.stringify({ approverId, comments }),
+      }),
+    action: (
+      documentId: number,
+      action: 'approve' | 'return' | 'withdraw',
+      versionNumber: number,
+      opts?: { reason?: string; comments?: string }
+    ) =>
+      json<AppDocument>(`/api/document/${documentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action, versionNumber, ...opts }),
+      }),
+    recordPrint: (documentId: number) =>
+      json<{ ok: boolean; documentRef: string }>(`/api/document/${documentId}`, {
+        method: 'POST',
+      }),
+  },
+
+  users: {
+    list: () =>
+      json<{ me: { id: number; roles: string[] }; users: { id: number; name: string; email: string }[] }>(
+        '/api/users'
+      ),
+  },
+
+  notifications: {
+    list: () => json<AppNotification[]>('/api/notifications'),
+    markRead: (ids?: number[]) =>
+      json<{ ok: boolean }>('/api/notifications', {
+        method: 'POST',
+        body: JSON.stringify(ids ? { ids } : { all: true }),
+      }),
   },
 
   stats: {

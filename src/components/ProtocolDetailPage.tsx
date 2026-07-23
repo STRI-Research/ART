@@ -6,12 +6,15 @@ import { api, type ProtocolSnapshot } from '@/lib/api'
 import { Combobox } from '@/components/Combobox'
 import { TimingField } from '@/components/TimingField'
 import { TreatmentProgram, programSummary } from '@/components/TreatmentProgram'
+import { ComponentsEditor, componentSummary } from '@/components/ComponentsEditor'
 import { timingLabel } from '@shared/timing'
 import { parseFormula } from '@shared/formula'
 import { validateDesign } from '@shared/design'
+import { validateTreatmentSet } from '@shared/treatmentValidation'
 import type {
   Protocol,
   Treatment,
+  Product,
   Application,
   MeasurementDef,
   DesignType,
@@ -37,16 +40,21 @@ export function ProtocolDetailPage({ id }: { id: number }) {
   const [treatments, setTreatments] = useState<Treatment[]>([])
   const [applications, setApplications] = useState<Application[]>([])
   const [measurementDefs, setMeasurementDefs] = useState<MeasurementDef[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [trtError, setTrtError] = useState('')
 
   useEffect(() => {
-    api.protocols.get(id).then((s: ProtocolSnapshot) => {
-      setProtocol(s.protocol)
-      setTreatments(s.treatments)
-      setApplications(s.applications)
-      setMeasurementDefs(s.measurementDefs)
-      setLoading(false)
-    })
+    Promise.all([api.protocols.get(id), api.products.list()]).then(
+      ([s, prods]: [ProtocolSnapshot, Product[]]) => {
+        setProtocol(s.protocol)
+        setTreatments(s.treatments)
+        setApplications(s.applications)
+        setMeasurementDefs(s.measurementDefs)
+        setProducts(prods)
+        setLoading(false)
+      }
+    )
   }, [id])
 
   const toggleExpanded = (n: number): void =>
@@ -68,16 +76,36 @@ export function ProtocolDetailPage({ id }: { id: number }) {
     [id]
   )
 
-  const saveTreatments = useCallback(
-    (next: Treatment[]): void => {
-      setTreatments(next)
+  /** Surface an API error (409 conflicts, validation failures) on the treatments tab. */
+  const trtCatch = useCallback((e: Error): void => {
+    try {
+      setTrtError(JSON.parse(e.message).error ?? e.message)
+    } catch {
+      setTrtError(e.message)
+    }
+  }, [])
+
+  /** Stable-ID PATCH of one treatment; merges the response, keeping programme arrays. */
+  const patchTreatment = useCallback(
+    (t: Treatment, patch: Partial<Pick<Treatment, 'name' | 'notes' | 'isCheck'>>): void => {
+      if (!t.id) return
+      setTrtError('')
       setSaving(true)
-      api.protocols
-        .saveTreatments(id, next)
-        .then(setTreatments)
+      api.treatments
+        .update(t.id, { ...patch, expectedVersion: t.version })
+        .then((row) =>
+          setTreatments((all) =>
+            all.map((x) =>
+              x.id === t.id
+                ? { ...x, ...row, applications: x.applications, components: x.components }
+                : x
+            )
+          )
+        )
+        .catch(trtCatch)
         .finally(() => setSaving(false))
     },
-    [id]
+    [trtCatch]
   )
 
   const saveApplications = useCallback(
@@ -164,17 +192,25 @@ export function ProtocolDetailPage({ id }: { id: number }) {
   )
 
   const addTreatment = (): void => {
-    const number = treatments.length ? Math.max(...treatments.map((t) => t.number)) + 1 : 1
-    saveTreatments([
-      ...treatments,
-      {
-        number,
-        name: number === 1 ? 'Untreated Check' : '',
-        type: '',
-        isCheck: number === 1,
-        applications: [],
-      },
-    ])
+    setTrtError('')
+    setSaving(true)
+    api.treatments
+      .create(id)
+      .then((row) => setTreatments((all) => [...all, row]))
+      .catch(trtCatch)
+      .finally(() => setSaving(false))
+  }
+
+  const deleteTreatment = (t: Treatment): void => {
+    if (!t.id) return
+    if (!confirm(`Remove treatment ${t.number}${t.name ? ` "${t.name}"` : ''}?`)) return
+    setTrtError('')
+    setSaving(true)
+    api.treatments
+      .delete(t.id)
+      .then(() => setTreatments((all) => all.filter((x) => x.id !== t.id)))
+      .catch(trtCatch)
+      .finally(() => setSaving(false))
   }
 
   const updateTreatment = (i: number, patch: Partial<Treatment>): void =>
@@ -308,16 +344,40 @@ export function ProtocolDetailPage({ id }: { id: number }) {
         <div className="card">
           <h2>Treatments</h2>
           <p className="muted">
-            Each treatment is a program — its sequence of applications (product + rate at each
-            timing). Expand a row to edit the program.
+            Each treatment is a programme — the products it includes, their rates, and how often
+            each is applied. Expand a row to edit the programme. Products come from the{' '}
+            <a href="/products">product catalogue</a>.
           </p>
+          {trtError && (
+            <p style={{ color: 'var(--danger, #b00020)', fontSize: 13 }}>⚠ {trtError}</p>
+          )}
+          {(() => {
+            const usesControl = measurementDefs.some((d) => /\b(control|ctrl|abbott)\s*\(/i.test(d.formula))
+            const issues = validateTreatmentSet(treatments, { formulasUseControl: usesControl })
+            return issues.length > 0 ? (
+              <div style={{ marginBottom: 8 }}>
+                {issues.map((iss, k) => (
+                  <p
+                    key={k}
+                    style={{
+                      margin: '2px 0',
+                      fontSize: 12,
+                      color: iss.level === 'error' ? 'var(--danger, #b00020)' : '#9a6700',
+                    }}
+                  >
+                    ⚠ {iss.message}
+                  </p>
+                ))}
+              </div>
+            ) : null
+          })()}
           <table className="data">
             <thead>
               <tr>
                 <th style={{ width: 40 }}></th>
                 <th style={{ width: 40 }}>#</th>
                 <th style={{ width: 200 }}>Name</th>
-                <th>Program</th>
+                <th>Programme</th>
                 <th style={{ width: 60 }} title="Untreated check — used by % control formulas">
                   Check
                 </th>
@@ -331,7 +391,7 @@ export function ProtocolDetailPage({ id }: { id: number }) {
                     <td>
                       <button
                         className="expander"
-                        title={expanded.has(t.number) ? 'Collapse' : 'Expand program'}
+                        title={expanded.has(t.number) ? 'Collapse' : 'Expand programme'}
                         onClick={() => toggleExpanded(t.number)}
                       >
                         {expanded.has(t.number) ? '▾' : '▸'}
@@ -342,7 +402,7 @@ export function ProtocolDetailPage({ id }: { id: number }) {
                       <input
                         value={t.name}
                         onChange={(e) => updateTreatment(i, { name: e.target.value })}
-                        onBlur={() => saveTreatments(treatments)}
+                        onBlur={() => patchTreatment(t, { name: t.name })}
                       />
                     </td>
                     <td
@@ -350,28 +410,24 @@ export function ProtocolDetailPage({ id }: { id: number }) {
                       style={{ cursor: 'pointer', fontSize: 12 }}
                       onClick={() => toggleExpanded(t.number)}
                     >
-                      {programSummary(t)}
+                      {t.components.length > 0
+                        ? componentSummary(t.components, new Map(products.map((p) => [p.id!, p])))
+                        : t.applications.length > 0
+                          ? programSummary(t)
+                          : t.isCheck
+                            ? 'untreated'
+                            : 'no products'}
                     </td>
                     <td className="num">
                       <input
                         type="checkbox"
                         checked={!!t.isCheck}
                         title="Mark as the untreated check for % control formulas"
-                        onChange={(e) => {
-                          const next = treatments.map((x, idx) =>
-                            idx === i ? { ...x, isCheck: e.target.checked } : x
-                          )
-                          setTreatments(next)
-                          saveTreatments(next)
-                        }}
+                        onChange={(e) => patchTreatment(t, { isCheck: e.target.checked })}
                       />
                     </td>
                     <td>
-                      <button
-                        className="danger"
-                        title="Remove treatment"
-                        onClick={() => saveTreatments(treatments.filter((_, idx) => idx !== i))}
-                      >
+                      <button className="danger" title="Remove treatment" onClick={() => deleteTreatment(t)}>
                         ✕
                       </button>
                     </td>
@@ -380,21 +436,34 @@ export function ProtocolDetailPage({ id }: { id: number }) {
                     <tr>
                       <td />
                       <td colSpan={5}>
-                        <TreatmentProgram
-                          applications={applications}
-                          crop={protocol.crop}
-                          value={t.applications}
-                          onChange={(lines) =>
-                            setTreatments(
-                              treatments.map((x, idx) => (idx === i ? { ...x, applications: lines } : x))
-                            )
-                          }
-                          onCommit={(lines) =>
-                            saveTreatments(
-                              treatments.map((x, idx) => (idx === i ? { ...x, applications: lines } : x))
-                            )
-                          }
-                        />
+                        {t.id != null && (
+                          <ComponentsEditor
+                            treatmentId={t.id}
+                            components={t.components}
+                            products={products}
+                            onChange={(components) =>
+                              setTreatments((all) =>
+                                all.map((x) => (x.id === t.id ? { ...x, components } : x))
+                              )
+                            }
+                          />
+                        )}
+                        {t.applications.length > 0 && (
+                          <div style={{ marginTop: 10 }}>
+                            <p className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
+                              Legacy programme lines (read-only — recreate as products above to use
+                              application planning):
+                            </p>
+                            <TreatmentProgram
+                              applications={applications}
+                              crop={protocol.crop}
+                              value={t.applications}
+                              onChange={() => undefined}
+                              onCommit={() => undefined}
+                              disabled
+                            />
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}

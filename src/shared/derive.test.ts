@@ -34,7 +34,7 @@ function header(id: number, ordinal: number, formula = ''): MeasurementHeader {
 }
 
 function treatment(id: number, number: number, isCheck = false): Treatment {
-  return { id, number, name: `T${number}`, type: '', isCheck, applications: [] }
+  return { id, number, name: `T${number}`, type: '', isCheck, notes: '', version: 1, applications: [], components: [] }
 }
 
 function plot(id: number, treatmentId: number, excluded = false): Plot {

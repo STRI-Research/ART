@@ -9,6 +9,7 @@ import { DocumentsView } from '@/components/DocumentsView'
 import { AuditView } from '@/components/AuditView'
 import { SiteView } from '@/components/SiteView'
 import { ApplicationsView } from '@/components/ApplicationsView'
+import { ScheduleView } from '@/components/ScheduleView'
 import { TrialMapView } from '@/components/TrialMapView'
 import { MeasurementsView } from '@/components/MeasurementsView'
 import { DataEntryView } from '@/components/DataEntryView'
@@ -17,6 +18,7 @@ type ViewId =
   | 'protocol'
   | 'site'
   | 'trialmap'
+  | 'schedule'
   | 'applications'
   | 'measurements'
   | 'dataentry'
@@ -36,11 +38,12 @@ const NAV: NavItem[] = [
   { id: 'protocol', label: 'Protocol (locked)' },
   { id: 'site', label: 'Site', step: 1 },
   { id: 'trialmap', label: 'Trial Map', step: 2 },
-  { id: 'applications', label: 'Applications', step: 3 },
-  { id: 'measurements', label: 'Measurements', step: 4, needsLock: true },
-  { id: 'dataentry', label: 'Enter Data', step: 5, needsLock: true },
-  { id: 'stats', label: 'Statistics', step: 6, needsLock: true },
-  { id: 'report', label: 'Report', step: 7, needsLock: true },
+  { id: 'schedule', label: 'Schedule', step: 3 },
+  { id: 'applications', label: 'Applications', step: 4 },
+  { id: 'measurements', label: 'Measurements', step: 5, needsLock: true },
+  { id: 'dataentry', label: 'Enter Data', step: 6, needsLock: true },
+  { id: 'stats', label: 'Statistics', step: 7, needsLock: true },
+  { id: 'report', label: 'Report', step: 8, needsLock: true },
   { id: 'documents', label: 'Documents' },
   { id: 'audit', label: 'Audit Log' },
 ]
@@ -138,6 +141,13 @@ export function TrialDetailPage({ id }: { id: number }) {
         )}
         {view === 'trialmap' && (
           <TrialMapView
+            trialId={snap.trial.id!}
+            snapshot={snap}
+            onSnapshotChange={setSnap}
+          />
+        )}
+        {view === 'schedule' && (
+          <ScheduleView
             trialId={snap.trial.id!}
             snapshot={snap}
             onSnapshotChange={setSnap}
