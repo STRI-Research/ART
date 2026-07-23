@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
-import { auth, signOut } from '@/auth'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { getUser } from '@/lib/stri-auth'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: 'ART — Agricultural Research Tool',
-  description:
-    'Plan, randomize, collect, and analyze field trials. Open-source.',
+  description: 'Plan, randomize, collect, and analyze field trials. Open-source.'
 }
 
 const bypassStripper = `
@@ -17,12 +18,8 @@ if(location.search.indexOf('x-vercel-protection-bypass')!==-1){
 }
 `
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const session = await auth()
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getUser()
 
   return (
     <html lang="en">
@@ -30,7 +27,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: bypassStripper }} />
       </head>
       <body>
-        {session?.user ? (
+        {user ? (
           <div className="app-shell">
             <header className="app-header">
               <a href="/" style={{ textDecoration: 'none' }}>
@@ -43,11 +40,16 @@ export default async function RootLayout({
               </nav>
               <div className="spacer" />
               <div className="user-info">
-                <span className="user-name">{session.user.name ?? session.user.email}</span>
+                <span className="user-name">{user.name || user.email}</span>
                 <form
                   action={async () => {
                     'use server'
-                    await signOut({ redirectTo: '/sign-in' })
+                    // Clearing only ART's cookie would bounce straight back through
+                    // the broker and sign the user in again, so end the Suite
+                    // session too — that is where the identity actually lives.
+                    const store = await cookies()
+                    store.delete('stri-session')
+                    redirect(`${process.env.STRI_SUITE_URL}/api/auth/signout`)
                   }}
                 >
                   <button type="submit" className="sign-out-btn">

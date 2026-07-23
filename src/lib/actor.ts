@@ -1,9 +1,9 @@
-import { auth } from '@/auth'
+import { getUser } from '@/lib/stri-auth'
 
 export async function getActor(): Promise<string> {
   try {
-    const session = await auth()
-    return session?.user?.email ?? session?.user?.name ?? 'web'
+    const user = await getUser()
+    return user?.email || user?.name || 'web'
   } catch {
     return 'web'
   }
