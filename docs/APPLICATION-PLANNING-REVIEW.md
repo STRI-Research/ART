@@ -1,6 +1,20 @@
 # Treatment & Application-Planning Redesign — Phase 0 Review
 
-Status: **design review — no schema or production code changed yet.**
+> **Implementation status (2026-07-23): Phases 1–6 are implemented on this branch** — see the
+> commit series "Phase 1 …" through "Phase 6 …". Highlights and deviations from this plan:
+>
+> - 117 unit tests cover the plan/calc/approval/validation domain modules (`npm test`).
+> - Migrations `drizzle/0000…0004` are additive; dev DBs can also use `npm run db:push`.
+> - Roles come from **Entra app roles** (decision D2): define app roles with values
+>   `preparer`, `research_manager`, `admin` on the app registration; approval enforcement is
+>   server-side from the session token.
+> - Evidence uploads need `BLOB_READ_WRITE_TOKEN` (Vercel Blob).
+> - Deferred, as planned: weather adapter implementation (GDD/growth-potential rules generate
+>   decision-required placeholders), email/Microsoft notifications, legacy free-text protocol
+>   assisted conversion (legacy program lines render read-only), protocol versioning, and the
+>   org-wide ownership model.
+
+Status: **design review — implemented in phases as noted above.**
 Scope: the redesign brief covering treatment components, scheduling rules, trial application
 events, the calculation engine, two-person Entra approval, application packs, evidence upload,
 and audit. This document is the required "first response" (brief §33): current-code findings,
