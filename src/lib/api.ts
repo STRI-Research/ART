@@ -6,6 +6,7 @@ import type {
   Application,
   ApplicationEvent,
   EventOccurrence,
+  TreatmentMix,
   MeasurementDef,
   MeasurementHeader,
   MeasurementValue,
@@ -77,6 +78,7 @@ export interface TrialSnapshot {
   properties: Property[]
   applicationEvents: ApplicationEvent[]
   eventOccurrences: EventOccurrence[]
+  treatmentMixes: TreatmentMix[]
 }
 
 export interface PlanConflictInfo {
@@ -273,6 +275,27 @@ export const api = {
       json<TrialSnapshot>(`/api/trial/${id}/event`, {
         method: 'POST',
         body: JSON.stringify({ date, componentId }),
+      }),
+    saveMixSettings: (
+      id: number,
+      eventId: number,
+      treatmentId: number,
+      settings: Partial<
+        Pick<
+          TreatmentMix,
+          | 'waterVolumeLPerHa'
+          | 'overageEnabled'
+          | 'overagePct'
+          | 'waterIn'
+          | 'sprayer'
+          | 'tankMixStatus'
+          | 'tankMixNotes'
+        >
+      >
+    ) =>
+      json<TrialSnapshot>(`/api/trial/${id}/event/${eventId}/mix/${treatmentId}`, {
+        method: 'PUT',
+        body: JSON.stringify(settings),
       }),
     updateOccurrence: (
       occurrenceId: number,

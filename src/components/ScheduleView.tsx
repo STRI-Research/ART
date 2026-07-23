@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { api, type TrialSnapshot, type PlanConflictInfo } from '@/lib/api'
+import { MixCalculations } from '@/components/MixCalculations'
 import { eventCountdown, daysBetween } from '@shared/plan'
 import { parseScheduleRule, ruleLabel } from '@shared/schedule'
 import type { ApplicationEvent, Product, TreatmentComponent } from '@shared/types'
@@ -316,6 +317,8 @@ export function ScheduleView({
           event={selectedEvent}
           events={events}
           occurrences={occByEvent.get(selectedEvent.id!) ?? []}
+          snapshot={snapshot}
+          products={products}
           productById={productById}
           treatmentById={treatmentById}
           componentRows={componentRows}
@@ -335,6 +338,8 @@ function EventPanel({
   event: ev,
   events,
   occurrences,
+  snapshot,
+  products,
   productById,
   treatmentById,
   componentRows,
@@ -346,6 +351,8 @@ function EventPanel({
   event: ApplicationEvent
   events: ApplicationEvent[]
   occurrences: TrialSnapshot['eventOccurrences']
+  snapshot: TrialSnapshot
+  products: Product[]
   productById: Map<number, Product>
   treatmentById: Map<number, TrialSnapshot['treatments'][number]>
   componentRows: { component: TreatmentComponent; treatmentNumber: number; treatmentName: string }[]
@@ -353,6 +360,7 @@ function EventPanel({
   onError: (msg: string) => void
   onClose: () => void
 }) {
+  const [showCalc, setShowCalc] = useState(false)
   const [moveDate, setMoveDate] = useState(ev.plannedDate)
   const [moveScope, setMoveScope] = useState<'event' | 'rebase'>('event')
   const [reason, setReason] = useState('')
@@ -454,6 +462,24 @@ function EventPanel({
           that they can be tank mixed.
         </p>
       )}
+
+      <div style={{ marginTop: 12 }}>
+        <button onClick={() => setShowCalc(!showCalc)}>
+          {showCalc ? '▾ Hide weigh sheet' : '▸ Weigh sheet & calculations'}
+        </button>
+        {showCalc && (
+          <div style={{ marginTop: 10 }}>
+            <MixCalculations
+              trialId={trialId}
+              event={ev}
+              snapshot={snapshot}
+              products={products}
+              onSnapshotChange={onResult}
+              onError={onError}
+            />
+          </div>
+        )}
+      </div>
 
       {pending && (
         <>

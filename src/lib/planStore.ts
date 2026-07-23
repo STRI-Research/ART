@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import type { getDb } from '@/lib/db'
-import { applicationEvent, eventOccurrence } from '@/lib/db/schema'
+import { applicationEvent, eventOccurrence, treatmentMix } from '@/lib/db/schema'
 import { nextLabels } from '@shared/plan'
 
 type Db = ReturnType<typeof getDb>
@@ -21,7 +21,14 @@ export async function loadPlan(tx: Tx, trialId: number) {
         .where(inArray(eventOccurrence.eventId, eventIds))
         .orderBy(asc(eventOccurrence.eventId), asc(eventOccurrence.id))
     : []
-  return { events, occurrences }
+  const mixes = eventIds.length
+    ? await tx
+        .select()
+        .from(treatmentMix)
+        .where(inArray(treatmentMix.eventId, eventIds))
+        .orderBy(asc(treatmentMix.eventId), asc(treatmentMix.treatmentId))
+    : []
+  return { events, occurrences, mixes }
 }
 
 export async function nextSequence(tx: Tx, trialId: number): Promise<number> {

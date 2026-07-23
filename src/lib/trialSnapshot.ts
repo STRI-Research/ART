@@ -71,7 +71,11 @@ export async function getTrialSnapshot(db: Db, trialId: number) {
     .from(property)
     .where(eq(property.trialId, tr.id))
 
-  const { events: applicationEvents, occurrences: eventOccurrences } = await loadPlan(db, tr.id)
+  const {
+    events: applicationEvents,
+    occurrences: eventOccurrences,
+    mixes: treatmentMixes,
+  } = await loadPlan(db, tr.id)
 
   // DAT derivation reads applicationActuals (timingCode → actualDate). Completed application
   // events feed the same mechanism by label, so "14 DA-A" resolves against event A's actual
@@ -102,5 +106,6 @@ export async function getTrialSnapshot(db: Db, trialId: number) {
     properties,
     applicationEvents,
     eventOccurrences,
+    treatmentMixes,
   }
 }

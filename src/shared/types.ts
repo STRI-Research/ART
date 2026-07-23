@@ -307,6 +307,27 @@ export const EventOccurrence = z.object({
 })
 export type EventOccurrence = z.infer<typeof EventOccurrence>
 
+export const TankMixStatus = z.enum(['unconfirmed', 'confirmed', 'separate', 'not_confirmed'])
+export type TankMixStatus = z.infer<typeof TankMixStatus>
+
+/**
+ * Per (event × treatment) spray-mix settings: the shared water volume, overage, and the
+ * tank-mix compatibility record. One treatment = one separately prepared mix.
+ */
+export const TreatmentMix = z.object({
+  id: z.number().int().optional(),
+  eventId: z.number().int(),
+  treatmentId: z.number().int(),
+  waterVolumeLPerHa: z.number().nullable().default(null),
+  overageEnabled: z.boolean().default(false),
+  overagePct: z.number().min(0).max(100).default(0),
+  waterIn: z.boolean().default(false),
+  sprayer: z.string().default(''),
+  tankMixStatus: TankMixStatus.default('unconfirmed'),
+  tankMixNotes: z.string().default('')
+})
+export type TreatmentMix = z.infer<typeof TreatmentMix>
+
 /** Trial-side record of when an application actually happened (keyed by the plan's timing code). */
 export const ApplicationActual = z.object({
   id: z.number().int().optional(),

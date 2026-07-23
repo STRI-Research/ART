@@ -285,6 +285,34 @@ export const eventOccurrence = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// Treatment mixes: per (event × treatment) spray-mix settings. One treatment =
+// one separately prepared mix (never combined across treatments); all products
+// in the mix share one water volume.
+// ---------------------------------------------------------------------------
+export const treatmentMix = pgTable(
+  'treatment_mix',
+  {
+    id: serial('id').primaryKey(),
+    eventId: integer('event_id')
+      .notNull()
+      .references(() => applicationEvent.id, { onDelete: 'cascade' }),
+    treatmentId: integer('treatment_id')
+      .notNull()
+      .references(() => treatment.id, { onDelete: 'restrict' }),
+    /** Shared water volume for the whole mix (null = derive from components/products). */
+    waterVolumeLPerHa: real('water_volume_l_per_ha'),
+    overageEnabled: boolean('overage_enabled').notNull().default(false),
+    overagePct: real('overage_pct').notNull().default(0),
+    waterIn: boolean('water_in').notNull().default(false),
+    sprayer: text('sprayer').notNull().default(''),
+    /** unconfirmed | confirmed | separate | not_confirmed */
+    tankMixStatus: text('tank_mix_status').notNull().default('unconfirmed'),
+    tankMixNotes: text('tank_mix_notes').notNull().default(''),
+  },
+  (t) => [uniqueIndex('mix_event_treatment').on(t.eventId, t.treatmentId)]
+)
+
+// ---------------------------------------------------------------------------
 // Application actuals (trial-side)
 // ---------------------------------------------------------------------------
 export const applicationActual = pgTable(
