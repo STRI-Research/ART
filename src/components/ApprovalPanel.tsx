@@ -193,13 +193,9 @@ export function ApprovalPanel({
 
       {doc?.status === 'approved' && (
         <div style={{ marginTop: 10 }}>
-          <button
-            className="primary"
-            onClick={() => run(api.documents.recordPrint(doc.id))}
-            title="Records the approved-document print in the audit trail; the printable application pack arrives with the pack generator"
-          >
-            Print approved weigh sheet
-          </button>
+          <a href={`/trial/${trialId}/pack/${event.id}`}>
+            <button className="primary">Open approved application pack</button>
+          </a>
           {doc.printedAt && (
             <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
               last printed {new Date(doc.printedAt).toLocaleString()}

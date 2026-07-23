@@ -405,7 +405,12 @@ function EventPanel({
             <span style={{ fontSize: 13, fontWeight: 400 }}> · cancelled</span>
           )}
         </h2>
-        <button onClick={onClose}>Close</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href={`/trial/${trialId}/pack/${ev.id}`}>
+            <button>Application pack</button>
+          </a>
+          <button onClick={onClose}>Close</button>
+        </div>
       </div>
 
       <table className="data" style={{ marginTop: 10 }}>
