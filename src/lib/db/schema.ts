@@ -545,6 +545,13 @@ export const appUser = pgTable(
     name: text('name').notNull().default(''),
     /** Entra object id (oid claim), for durable identity across email changes. */
     entraOid: text('entra_oid').notNull().default(''),
+    /**
+     * ART application role, owned here rather than derived from an identity
+     * provider — one of 'preparer' | 'research_manager' | 'admin' (see
+     * @shared/roles). Authentication comes from STRI Suite; authorization is
+     * this column, looked up by email. Managed by an ART admin.
+     */
+    role: text('role').notNull().default('preparer'),
     active: boolean('active').notNull().default(true),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
