@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
+    "@stri/auth": "github:STRI-Research/stri-auth#v1.0.0",
     "@vercel/blob": "^2.6.1",
     "drizzle-orm": "^0.36.4",
     "jose": "^6.2.4",
