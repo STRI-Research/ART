@@ -2,7 +2,6 @@ node_modules/
 .next/
 out/
 dist-app/
-drizzle/
 *.log
 *.tsbuildinfo
 .DS_Store
